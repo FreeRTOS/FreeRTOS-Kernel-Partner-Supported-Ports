@@ -284,30 +284,35 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask,
      * implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
      * used by the Idle task.
      */
-        void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
-                                    StackType_t ** ppxIdleTaskStackBuffer,
-                                    uint32_t * pulIdleTaskStackSize )
+    void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
+                                        StackType_t **ppxIdleTaskStackBuffer,
+                                        uint32_t *pulIdleTaskStackSize )
     {
-        static StaticTask_t xIdleTaskTCB;
-        static StackType_t uxIdleTaskStack[ configMINIMAL_STACK_SIZE ];
+        /* Pass out a pointer to the StaticTask_t structure in which the Idle task’s
+         * state will be stored.
+         */
+        *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
 
-        *ppxIdleTaskTCBBuffer = &( xIdleTaskTCB );
-        *ppxIdleTaskStackBuffer = &( uxIdleTaskStack[ 0 ] );
+        /* Pass out the array that will be used as the Idle task’s stack. */
+        *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+
+        /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
+         * Note that, as the array is necessarily of type StackType_t,
+         * configMINIMAL_STACK_SIZE is specified in words, not bytes.
+         */
         *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
     }
 
     #if ( configNUMBER_OF_CORES > 1 )
-
+        static StaticTask_t xPassiveIdleTaskTCBs[ configNUMBER_OF_CORES - 1 ];
+        static StackType_t uxPassiveIdleTaskStacks[ configNUMBER_OF_CORES - 1 ][ configMINIMAL_STACK_SIZE ];
         void vApplicationGetPassiveIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
                                                    StackType_t ** ppxIdleTaskStackBuffer,
                                                    uint32_t * pulIdleTaskStackSize,
                                                    BaseType_t xPassiveIdleTaskIndex )
         {
-            static StaticTask_t xIdleTaskTCBs[ configNUMBER_OF_CORES - 1 ];
-            static StackType_t uxIdleTaskStacks[ configNUMBER_OF_CORES - 1 ][ configMINIMAL_STACK_SIZE ];
-
-            *ppxIdleTaskTCBBuffer = &( xIdleTaskTCBs[ xPassiveIdleTaskIndex ] );
-            *ppxIdleTaskStackBuffer = &( uxIdleTaskStacks[ xPassiveIdleTaskIndex ][ 0 ] );
+            *ppxIdleTaskTCBBuffer = &( xPassiveIdleTaskTCBs[ xPassiveIdleTaskIndex ] );
+            *ppxIdleTaskStackBuffer = &( uxPassiveIdleTaskStacks[ xPassiveIdleTaskIndex ][ 0 ] );
             *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
         }
 
