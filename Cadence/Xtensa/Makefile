@@ -26,11 +26,11 @@ MPUFLAGS    = -DportUSING_MPU_WRAPPERS=1  -DportALIGN_SECTIONS
 endif
 
 SRCROOT     = $(subst /,$(S),$(CURDIR))
-TSTROOT     = $(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)examples$(S)cadence$(S)sim$(SMALL))
+TSTROOT     = $(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)..$(S)..$(S)..$(S)Demo$(S)ThirdParty$(S)Partner-Supported-Demos$(S)Cadence$(S)Xtensa$(S)sim$(SMALL))
 BLDROOT     = $(TSTROOT)$(S)build
 BLDDIR      = $(BLDROOT)$(S)$(XT_CORE)
 
-FR_SRCDIR   = $(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S))
+FR_SRCDIR   = $(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)..$(S)..)
 FR_SRCDIR2  = $(FR_SRCDIR)$(S)portable$(S)MemMang
 ifeq ($(MPU),1)
 FR_SRCDIR3  = $(FR_SRCDIR)$(S)portable$(S)Common
@@ -101,7 +101,7 @@ $(BLDDIR)/.mkdir :
 	@echo "" > $@
 
 $(BLDDIR)/reent.h : $(BLDDIR)/.mkdir
-	-$(CP) $(CONFIGDIR)/xtensa-elf/include/sys/reent.h $(BLDDIR)/reent.h
+	-$(CP) $(subst /,$(S),$(CONFIGDIR))$(S)xtensa-elf$(S)include$(S)sys$(S)reent.h $(BLDDIR)$(S)reent.h
 
 $(LIB_O_LIST) : $(BLDDIR)/asm-offsets.h
 

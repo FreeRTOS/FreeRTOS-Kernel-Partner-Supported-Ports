@@ -273,8 +273,8 @@ Xtensa Port Version.
 
 *******************************************************************************/
 
-#define XTENSA_PORT_VERSION             2.40
-#define XTENSA_PORT_VERSION_STRING      "2.40"
+#define XTENSA_PORT_VERSION             3.00
+#define XTENSA_PORT_VERSION_STRING      "3.00"
 
 #define XT_IRQ_LOCK_LEVEL XCHAL_EXCM_LEVEL
 
