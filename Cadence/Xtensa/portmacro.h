@@ -53,9 +53,11 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
+/* *INDENT-OFF* */
 #ifdef __cplusplus
-extern "C" {
+    extern "C" {
 #endif
+/* *INDENT-ON* */
 
 #include "xtensa_rtos.h"
 
@@ -91,12 +93,14 @@ typedef portSTACK_TYPE                 StackType_t;
 typedef portBASE_TYPE                  BaseType_t;
 typedef unsigned portBASE_TYPE	UBaseType_t;
 
-#if( configUSE_16_BIT_TICKS == 1 )
+#if( configTICK_TYPE_WIDTH_IN_BITS == TICK_TYPE_WIDTH_16_BITS )
 	typedef uint16_t TickType_t;
 	#define portMAX_DELAY ( TickType_t ) 0xffff
-#else
+#elif ( configTICK_TYPE_WIDTH_IN_BITS == TICK_TYPE_WIDTH_32_BITS )
 	typedef uint32_t TickType_t;
 	#define portMAX_DELAY ( TickType_t ) 0xffffffffUL
+#else
+	#error configTICK_TYPE_WIDTH_IN_BITS set to unsupported tick type width.
 #endif
 /*-----------------------------------------------------------*/
 
@@ -417,9 +421,6 @@ void exit(int);
 
 #if (XT_USE_THREAD_SAFE_CLIB > 0u) && (XSHAL_CLIB == XTHAL_CLIB_XCLIB)
 extern void vPortClibInit(void);
-
-// No cleanup necessary at this time.
-#define portCLEAN_UP_TCB(pxTCB)
 #endif // XCLIB support
 
 #if (XT_USE_THREAD_SAFE_CLIB > 0u) && (XSHAL_CLIB == XTHAL_CLIB_NEWLIB)
@@ -440,9 +441,11 @@ static inline void vPortCleanUpTcbClib(struct _reent *ptr)
 
 #endif // __ASSEMBLER__
 
+/* *INDENT-OFF* */
 #ifdef __cplusplus
-}
+    }
 #endif
+/* *INDENT-ON* */
 
 #endif /* PORTMACRO_H */
 

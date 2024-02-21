@@ -92,6 +92,7 @@ NOERROR: .error "C preprocessor needed for this file: make sure its filename\
     .section "privileged_functions"
 #else
     .text
+    .literal_position
 #endif
 
 /*******************************************************************************

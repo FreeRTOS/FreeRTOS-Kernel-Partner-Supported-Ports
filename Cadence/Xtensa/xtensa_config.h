@@ -62,9 +62,11 @@
 #ifndef XTENSA_CONFIG_H
 #define XTENSA_CONFIG_H
 
+/* *INDENT-OFF* */
 #ifdef __cplusplus
-extern "C" {
+    extern "C" {
 #endif
+/* *INDENT-ON* */
 
 #include <xtensa/hal.h>
 #include <xtensa/config/core.h>
@@ -200,9 +202,11 @@ extern "C" {
 /* Default system (interrupt) stack size */
 #define XT_SYSTEM_STACK_SIZE      0x400
 
+/* *INDENT-OFF* */
 #ifdef __cplusplus
-}
+    }
 #endif
+/* *INDENT-ON* */
 
 #endif /* XTENSA_CONFIG_H */
 

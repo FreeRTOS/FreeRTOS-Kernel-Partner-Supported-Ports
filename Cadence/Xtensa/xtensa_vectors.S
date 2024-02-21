@@ -438,6 +438,7 @@
     .global     _xt_panic
     .type       _xt_panic,@function
     .align      4
+    .literal_position
 
 _xt_panic:
     #ifdef XT_SIMULATOR
@@ -520,6 +521,7 @@ at the vector itself to avoid overflowing the memory segment allocated to it.
     .section    .DebugExceptionVector.text, "ax"
     .global     _DebugExceptionVector
     .align      4
+    .literal_position
 
 _DebugExceptionVector:
 
@@ -581,6 +583,7 @@ Double exceptions are not a normal occurrence. They indicate a bug of some kind.
     .section    .DoubleExceptionVector.text, "ax"
     .global     _DoubleExceptionVector
     .align      4
+    .literal_position
 
 _DoubleExceptionVector:
 
@@ -604,6 +607,7 @@ Kernel Exception (including Level 1 Interrupt from kernel mode).
     .section    .KernelExceptionVector.text, "ax"
     .global     _KernelExceptionVector
     .align      4
+    .literal_position
 
 _KernelExceptionVector:
 
@@ -635,6 +639,7 @@ User Exception (including Level 1 Interrupt from user mode).
     .global     _UserExceptionVector
     .type       _UserExceptionVector,@function
     .align      4
+    .literal_position
 
 _UserExceptionVector:
 
@@ -1025,6 +1030,8 @@ _Interrupt:
     .global     _Level2Vector
     .type       _Level2Vector,@function
     .align      4
+    .literal_position
+
 _Level2Vector:
     wsr     a0, EXCSAVE_2                   /* preserve a0 */
     call0   _xt_medint2                     /* load interrupt handler */
@@ -1100,6 +1107,8 @@ _xt_medint2_exit:
     .global     _Level3Vector
     .type       _Level3Vector,@function
     .align      4
+    .literal_position
+
 _Level3Vector:
     wsr     a0, EXCSAVE_3                   /* preserve a0 */
     call0   _xt_medint3                     /* load interrupt handler */
@@ -1175,6 +1184,8 @@ _xt_medint3_exit:
     .global     _Level4Vector
     .type       _Level4Vector,@function
     .align      4
+    .literal_position
+
 _Level4Vector:
     wsr     a0, EXCSAVE_4                   /* preserve a0 */
     call0   _xt_medint4                     /* load interrupt handler */
@@ -1249,6 +1260,8 @@ _xt_medint4_exit:
     .global     _Level5Vector
     .type       _Level5Vector,@function
     .align      4
+    .literal_position
+
 _Level5Vector:
     wsr     a0, EXCSAVE_5                   /* preserve a0 */
     call0   _xt_medint5                     /* load interrupt handler */
@@ -1323,6 +1336,8 @@ _xt_medint5_exit:
     .global     _Level6Vector
     .type       _Level6Vector,@function
     .align      4
+    .literal_position
+
 _Level6Vector:
     wsr     a0, EXCSAVE_6                   /* preserve a0 */
     call0   _xt_medint6                     /* load interrupt handler */

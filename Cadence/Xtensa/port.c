@@ -303,7 +303,9 @@ StackType_t *pxPortInitialiseStack( StackType_t * pxTopOfStack,
                                     void * pvParameters )
 #endif
 {
-    StackType_t *sp, *tp, *ret;
+    StackType_t *sp;
+    StackType_t *tp;
+    StackType_t *ret;
     XtExcFrame  *frame;
     #if XCHAL_CP_NUM > 0
     uint32_t *p;
