@@ -176,7 +176,7 @@ Xtensa processor configuration.
 
 To build the examples for the default platform (simulator):
 
-> cd demos/cadence/sim
+> cd Demo/ThirdParty/Partner-Supported-Demos/Cadence/Xtensa/sim
 
 > xt-make all
 

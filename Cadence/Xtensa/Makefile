@@ -26,7 +26,7 @@ MPUFLAGS    = -DportUSING_MPU_WRAPPERS=1  -DportALIGN_SECTIONS
 endif
 
 SRCROOT     = $(subst /,$(S),$(CURDIR))
-TSTROOT     = $(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)..$(S)..$(S)..$(S)Demo$(S)ThirdParty$(S)Partner-Supported-Demos$(S)Cadence$(S)Xtensa$(S)sim$(SMALL))
+TSTROOT     = $(subst /,$(S),$(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)..$(S)..$(S)..$(S)Demo$(S)ThirdParty$(S)Partner-Supported-Demos$(S)Cadence$(S)Xtensa$(S)sim$(SMALL)))
 BLDROOT     = $(TSTROOT)$(S)build
 BLDDIR      = $(BLDROOT)$(S)$(XT_CORE)
 
