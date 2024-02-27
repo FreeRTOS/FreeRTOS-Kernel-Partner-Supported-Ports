@@ -396,25 +396,9 @@ void exit(int);
 /* To enable thread-safe C library support, XT_USE_THREAD_SAFE_CLIB must be
    defined to be > 0 somewhere above or on the command line. */
 
-#if (XT_USE_THREAD_SAFE_CLIB > 0u) && (XSHAL_CLIB == XTHAL_CLIB_XCLIB)
+#if (XT_USE_THREAD_SAFE_CLIB > 0u) && ((XSHAL_CLIB == XTHAL_CLIB_XCLIB) || (XSHAL_CLIB == XTHAL_CLIB_NEWLIB))
 extern void vPortClibInit(void);
-#endif // XCLIB support
-
-#if (XT_USE_THREAD_SAFE_CLIB > 0u) && (XSHAL_CLIB == XTHAL_CLIB_NEWLIB)
-extern void vPortClibInit(void);
-
-// This C library cleanup is not currently done by FreeRTOS when deleting a task
-#include <stdio.h>
-#define portCLEAN_UP_TCB(pxTCB)   vPortCleanUpTcbClib(&((pxTCB)->xNewLib_reent))
-static inline void vPortCleanUpTcbClib(struct _reent *ptr)
-{
-    FILE * fp = &(ptr->__sf[0]);
-    int i;
-    for (i = 0; i < 3; ++i, ++fp) {
-        fp->_close = NULL;
-    }
-}
-#endif // NEWLIB support
+#endif // XCLIB || NEWLIB support
 
 #endif // __ASSEMBLER__
 
