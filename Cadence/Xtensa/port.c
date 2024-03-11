@@ -381,12 +381,15 @@ StackType_t *pxPortInitialiseStack( StackType_t * pxTopOfStack,
 void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
 {
     eSleepModeStatus eSleepStatus;
-    uint32_t ps;
 
     // Lock out all interrupts. Otherwise reading and using ccount can
     // get messy. Shouldn't be a problem here since we are about to go
     // to sleep, and the waiti will re-enable interrupts shortly.
-    ps = portENTER_CRITICAL_NESTED();
+	
+	// Must call vTaskEnterCritical() in order to increment FreeRTOS 
+	// nesting count, otheriwse the call to vTaskStepTick() inside this
+	// critical section will inadvertently reenable interrupts.
+    portENTER_CRITICAL();
 
     eSleepStatus = eTaskConfirmSleepModeStatus();
     if ( eSleepStatus == eAbortSleep )
@@ -425,6 +428,11 @@ void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
         xt_interrupt_clear( XT_TIMER_INTNUM );
 #endif
         // Ensure any clearing of pending interrupt takes effect.
+		// WAITI instruction will reduce interrupt level and sleep so
+		// it must be followed by raising the interrupt level to ensure
+		// the critical section is maintained.  The NESTED version is 
+		// used here since it does not increment the nesting count that 
+		// is managed upon entry and exit of this function.
         XT_ISYNC();
         XT_WAITI( 0 );
         portENTER_CRITICAL_NESTED();
@@ -487,7 +495,7 @@ void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
         }
     }
 
-    portEXIT_CRITICAL_NESTED( ps );
+    portEXIT_CRITICAL();
 }
 #endif
 
@@ -556,11 +564,10 @@ static void update_tick_remainder( uint32_t now )
 #if ( configUSE_TICKLESS_IDLE != 0 )
 void xt_update_clock_frequency( void )
 {
-    uint32_t ps;
     uint32_t skip_tick;
     uint32_t now;
 
-    ps = portENTER_CRITICAL_NESTED();
+    portENTER_CRITICAL();
 
     now = xt_get_ccount();
     skip_tick = xt_skip_tick;
@@ -605,16 +612,14 @@ void xt_update_clock_frequency( void )
     }
     update_tick_remainder( now );
 
-    portEXIT_CRITICAL_NESTED( ps );
+    portEXIT_CRITICAL();
 }
 #else
 void xt_update_clock_frequency( void )
 {
-    uint32_t ps;
-
-    ps = portENTER_CRITICAL_NESTED();
+    portENTER_CRITICAL();
     update_tick_remainder( xt_get_ccount() );
-    portEXIT_CRITICAL_NESTED( ps );
+    portEXIT_CRITICAL();
 }
 #endif
 #endif

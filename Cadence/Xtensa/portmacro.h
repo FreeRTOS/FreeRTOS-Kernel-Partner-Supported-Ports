@@ -113,6 +113,9 @@ portENABLE_INTERRUPTS(void)
 }
 
 // Nested critical sections. Nesting managed by FreeRTOS.
+// This is fine for a single core.  TODO: revisit for SMP support.
+// NOTE: consider Espressif solution: GCC/Xtensa_ESP32/include/portmacro.h
+
 #define portCRITICAL_NESTING_IN_TCB	1
 
 extern void vTaskEnterCritical(void);
