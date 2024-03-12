@@ -106,7 +106,7 @@ uint32_t port_interruptNesting  = 0U;
 //-----------------------------------------------------------------------------
 static void xt_tick_handler( void )
 {
-    uint32_t diff;
+    int32_t diff;
 
 #if ( configUSE_TICKLESS_IDLE != 0 )
     if ( xt_skip_tick )
@@ -140,9 +140,13 @@ static void xt_tick_handler( void )
 
         portYIELD_FROM_ISR( ret );
 
-        diff = xt_get_ccount() - ulOldCCompare;
+		// Signed comparison gracefully handles cases where another source
+		// has called xt_update_clock_frequency(), e.g. for tickless idle
+		// or variable frequency support, and ccompare was advanced 
+		// farther than expected.
+        diff = (int32_t)(xt_get_ccount() - ulOldCCompare);
     }
-    while ( diff > xt_tick_cycles );
+    while ( diff > (int32_t)xt_tick_cycles );
 }
 
 static void update_xt_tick_cycles( void )
