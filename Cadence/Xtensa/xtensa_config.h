@@ -129,7 +129,7 @@
       #define _REENT_INIT_PTR               _init_reent
       #define _impure_ptr                   _reent_ptr
 
-      void _reclaim_reent(void * ptr);
+      void _reclaim_reent(struct _reent * ptr);
     #endif
   #elif XSHAL_CLIB == XTHAL_CLIB_NEWLIB
     #define XT_HAVE_THREAD_SAFE_CLIB        1
@@ -137,6 +137,8 @@
       #include <sys/reent.h>
       #define XT_CLIB_CONTEXT_AREA_SIZE     ((sizeof(struct _reent) + 15) + (-16))
       #define XT_CLIB_GLOBAL_PTR            _impure_ptr
+
+      void _reclaim_reent(struct _reent * ptr);
     #endif
   #else
     #define XT_HAVE_THREAD_SAFE_CLIB        0

@@ -140,7 +140,7 @@ vPortClibInit(void)
 //  Per-thread cleanup stub provided for linking, does nothing.
 //-----------------------------------------------------------------------------
 void
-_reclaim_reent(void * ptr)
+_reclaim_reent(struct _reent * ptr)
 {
     (void ) ptr;    /* Avoid compiler warning */
 }
@@ -245,6 +245,15 @@ vPortClibInit(void)
 
     xClibMutex = xSemaphoreCreateRecursiveMutex();
     ulClibInitDone  = 1;
+}
+
+//-----------------------------------------------------------------------------
+//  Per-thread cleanup stub provided for linking, does nothing.
+//-----------------------------------------------------------------------------
+void
+_reclaim_reent(struct _reent * ptr)
+{
+    (void ) ptr;    /* Avoid compiler warning */
 }
 
 #endif /* XSHAL_CLIB == XTHAL_CLIB_NEWLIB */
