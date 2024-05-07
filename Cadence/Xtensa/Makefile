@@ -25,6 +25,11 @@ ifeq ($(MPU),1)
 MPUFLAGS    = -DportUSING_MPU_WRAPPERS=1  -DportALIGN_SECTIONS
 endif
 
+# Build with overlay support
+ifeq ($(OVERLAY),1)
+OVLYFLAGS   = -DXT_USE_THREAD_SAFE_CLIB=1 -DXT_USE_OVLY=1
+endif
+
 SRCROOT     = $(subst /,$(S),$(CURDIR))
 TSTROOT     = $(subst /,$(S),$(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)..$(S)..$(S)..$(S)Demo$(S)ThirdParty$(S)Partner-Supported-Demos$(S)Cadence$(S)Xtensa$(S)sim$(SMALL)))
 BLDROOT     = $(TSTROOT)$(S)build
@@ -74,9 +79,13 @@ IFLAGS      = \
   -I$(FR_SRCDIR)$(S)include -I$(XT_SRCDIR) -I$(TSTROOT)$(S)common$(S)config_files -I$(BLDDIR)
 
 CSTD        = -std=c99
+ifeq ($(OVERLAY),1)
+CFLAGS      = -Os -g
+else
 CFLAGS      = -O2 -g
+endif
 WFLAGS      = -Werror -Wall -Wextra
-CCFLAGS     = $(CSTD) $(CFLAGS) $(WFLAGS) -mno-coproc -mlongcalls -ffunction-sections -mno-l32r-flix $(DFLAGS) $(MPUFLAGS)
+CCFLAGS     = $(CSTD) $(CFLAGS) $(WFLAGS) -mno-coproc -mlongcalls -ffunction-sections -mno-l32r-flix $(DFLAGS) $(MPUFLAGS) $(OVLYFLAGS)
 ASFLAGS     = $(CCFLAGS)
 
 # File-specific flags
