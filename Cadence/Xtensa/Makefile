@@ -94,7 +94,7 @@ FLAGS_xtensa_vectors_xea3 = -mtext-section-literals
 
 FLAGS_mpu = -mtext-section-literals
 FLAGS_portasm = -mtext-section-literals
-FLAGS_xtensa_context = -mtext-section-literals
+FLAGS_xtensa_context = -mtext-section-literals -Wno-error
 FLAGS_xtensa_coproc_handler = -mtext-section-literals
 
 # Include dependency rules (generated using -MD)

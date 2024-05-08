@@ -144,7 +144,8 @@ XSTRUCT_FIELD (long, 4, XT_STK_VPRI,     vpri)
 #endif
 #ifdef XT_USE_OVLY
 /* Storage for overlay state */
-XSTRUCT_FIELD (long, 4, XT_STK_OVLY,     ovly)
+XSTRUCT_FIELD (long, 4, XT_STK_OVLY,         ovly)
+XSTRUCT_FIELD (long, 4, XT_STK_OVLY_SCRATCH, ovly_scratch)
 #endif
 XSTRUCT_END(XtExcFrame)
 

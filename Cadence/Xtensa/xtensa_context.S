@@ -60,6 +60,11 @@ NOERROR: .error "C preprocessor needed for this file: make sure its filename\
 #include <xtensa/core-macros.h>
 
 #ifdef XT_USE_OVLY
+#if (XCHAL_SW_VERSION >= 1504000)
+#include <xtensa/overlay.h>
+#else
+#warning liboverlay bugfixes in RJ.4 tools are recommended
+#endif
 #include <xtensa/overlay_os_asm.h>
 #endif
 
@@ -180,6 +185,10 @@ _xt_context_save:
     l32i    a9,  sp, XT_STK_PC          /* recover saved PC */
     _xt_overlay_get_state    a9, a12, a13
     s32i    a9,  sp, XT_STK_OVLY        /* save overlay state */
+    #if (defined XT_OV_SCRATCH)         /* In newer liboverlay versions */
+    rsr     a9,  XT_OV_SCRATCH          /* save XT_OV_SCRATCH register */
+    s32i    a9,  sp, XT_STK_OVLY_SCRATCH
+    #endif
     #endif
 
     l32i    a12, sp, XT_STK_A12         /* recover original a9,12,13 */
@@ -297,6 +306,10 @@ _xt_context_restore:
     _xt_overlay_check_map    a2, a3, a4, a5, a6
     s32i    a2,  sp, XT_STK_PC          /* save updated PC */
     s32i    a3,  sp, XT_STK_PS          /* save updated PS */
+    #if (defined XT_OV_SCRATCH)         /* In newer liboverlay versions */
+    l32i    a6,  sp, XT_STK_OVLY_SCRATCH
+    wsr     a6,  XT_OV_SCRATCH          /* restore XT_OV_SCRATCH register */
+    #endif
     #endif
 
     #ifdef XT_USE_SWPRI
