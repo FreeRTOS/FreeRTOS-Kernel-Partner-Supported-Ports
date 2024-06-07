@@ -85,7 +85,8 @@ else
 CFLAGS      = -O2 -g
 endif
 WFLAGS      = -Werror -Wall -Wextra
-CCFLAGS     = $(CSTD) $(CFLAGS) $(WFLAGS) -mno-coproc -mlongcalls -ffunction-sections -mno-l32r-flix $(DFLAGS) $(MPUFLAGS) $(OVLYFLAGS)
+CFGFLAGS   ?= 
+CCFLAGS     = $(CSTD) $(CFGFLAGS) $(CFLAGS) $(WFLAGS) -mno-coproc -mlongcalls -ffunction-sections -mno-l32r-flix $(DFLAGS) $(MPUFLAGS) $(OVLYFLAGS)
 ASFLAGS     = $(CCFLAGS)
 
 # File-specific flags
