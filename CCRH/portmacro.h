@@ -180,10 +180,10 @@
     #define portEXIT_CRITICAL()     vTaskExitCritical()
 
 /*-----------------------------------------------------------*/
-    BaseType_t ulPortSetInterruptMask();
+    BaseType_t xPortSetInterruptMask();
     void vPortClearInterruptMask( UBaseType_t );
 
-    #define portSET_INTERRUPT_MASK_FROM_ISR()         ulPortSetInterruptMask()
+    #define portSET_INTERRUPT_MASK_FROM_ISR()         xPortSetInterruptMask()
     #define portCLEAR_INTERRUPT_MASK_FROM_ISR( x )    vPortClearInterruptMask( ( x ) )
 
 /*-----------------------------------------------------------*/

@@ -232,6 +232,8 @@ UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
 /* TODO: Add comment here */
     void vPortLockAcquire( void );
     void vPortLockRelease( void );
+    void vPortLockAcquireFromISR( void );
+    void vPortLockReleaseFromISR( void );
 
 #endif /* (configNUMBER_OF_CORES > 1) */
 
@@ -394,7 +396,9 @@ StackType_t * pxPortInitialiseStack( StackType_t * pxTopOfStack,
  */
 BaseType_t xPortStartScheduler( void )
 {
-    BaseType_t xCurrentCore = ulPortGET_CORE_ID();
+    BaseType_t xCurrentCore = xPortGET_CORE_ID();
+
+    portDISABLE_INTERRUPTS();
 
     /* Setup the tick interrupt */
     configSETUP_TICK_INTERRUPT();
@@ -465,7 +469,7 @@ void vPortEndScheduler( void )
     void vPortYieldCore( uint32_t xCoreID )
     {
         /* Check if we need to yield on a different core */
-        if( xCoreID != ulPortGET_CORE_ID() )
+        if( xCoreID != xPortGET_CORE_ID() )
         {
             volatile uint32_t * pulIPIRReg;
 
@@ -510,7 +514,7 @@ void vPortEndScheduler( void )
     {
         BaseType_t xSavedInterruptStatus;
 
-        xSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
+        xSavedInterruptStatus = portENTER_CRITICAL_FROM_ISR();
         {
             /* Increment the RTOS tick. */
             if( xTaskIncrementTick() != pdFALSE )
@@ -519,7 +523,7 @@ void vPortEndScheduler( void )
                 xPortScheduleStatus[ xPortGET_CORE_ID() ] = PORT_SCHEDULER_TASKSWITCH;
             }
         }
-        portCLEAR_INTERRUPT_MASK_FROM_ISR( xSavedInterruptStatus );
+        portEXIT_CRITICAL_FROM_ISR( xSavedInterruptStatus );
     }
 /*-----------------------------------------------------------*/
 
@@ -555,46 +559,58 @@ void vPortEndScheduler( void )
  */
     static void prvRecursiveLock( void )
     {
-        pushsp r20, r20
-               mov     # _ulPortExclusiveReg, r20
+        mov     # _pxPortExclusiveReg, r19
+        ld.w    0[ r19 ], r19
 
 prvRecursiveRelease_Lock:
-        set1    0, 0[ r20 ]
+        set1    0, 0[ r19 ]
         bz prvRecursiveLock_Lock_success
         snooze
         br prvRecursiveRelease_Lock
 
 prvRecursiveLock_Lock_success:
-        popsp r20, r20
-               jmp[ lp ]
     }
 /*-----------------------------------------------------------*/
 
     #pragma inline_asm prvRecursiveRelease
     static void prvRecursiveRelease( void )
     {
-        pushsp r20, r20
-               mov     # _pulPortExclusiveReg, r20
-               clr1    0, 0[ r20 ]
-        popsp r20, r20
-               jmp[ lp ]
+        mov     # _pxPortExclusiveReg, r19
+        ld.w    0[ r19 ], r19
+        clr1    0, 0[ r19 ]
     }
 /*-----------------------------------------------------------*/
 
     void vPortLockAcquire( void )
     {
-        /* prvRecursiveLock(); */
-        uxLockNesting[ ulPortGET_CORE_ID() ]++;
+        BaseType_t xSavedInterruptStatus;
+        BaseType_t xCoreID = xPortGET_CORE_ID();
+
+        xSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
+
+        if( uxLockNesting[ xCoreID ] == 0 )
+        {
+            prvRecursiveLock();
+        }
+
+        uxLockNesting[ xCoreID ]++;
+        portCLEAR_INTERRUPT_MASK_FROM_ISR( xSavedInterruptStatus );
     }
 
     void vPortLockRelease( void )
     {
-        uxLockNesting[ ulPortGET_CORE_ID() ]--;
+        BaseType_t xSavedInterruptStatus;
+        BaseType_t xCoreID = xPortGET_CORE_ID();
 
-        if( uxLockNesting[ ulPortGET_CORE_ID() ] == 0 )
+        xSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
+        uxLockNesting[ xCoreID ]--;
+
+        if( uxLockNesting[ xCoreID ] == 0 )
         {
-            /* prvRecursiveRelease(); */
+            prvRecursiveRelease();
         }
+
+        portCLEAR_INTERRUPT_MASK_FROM_ISR( xSavedInterruptStatus );
     }
 /*-----------------------------------------------------------*/
 
