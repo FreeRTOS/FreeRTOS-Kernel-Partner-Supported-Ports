@@ -32,7 +32,7 @@
 
 /* This port uses xTaskGetCurrentTaskHandle to get TCB stack, it is required to enable this API. */
 #if ( ( INCLUDE_xTaskGetCurrentTaskHandle != 1 ) && ( configNUMBER_OF_CORES == 1 ) )
-    #error INCLUDE_xTaskGetCurrentTaskHandle must be set to 1 in single cores.
+    #error INCLUDE_xTaskGetCurrentTaskHandle must be set to 1 in single core.
 #endif
 
 /***********************************************************
@@ -233,7 +233,7 @@ volatile const UBaseType_t uxPortMaxInterruptDepth = configMAX_INT_NESTING - 1;
 UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
 
 #if ( configNUMBER_OF_CORES > 1 )
-/* TODO: Addd comment here */
+    /* Pointer to exclusive access memory */
     volatile BaseType_t * pxPortExclusiveReg = ( volatile BaseType_t * ) ( portMEV_BASE_ADDR );
 #endif
 
@@ -299,7 +299,14 @@ void vPortClearInterruptMask( UBaseType_t uxSavedInterruptStatus )
  */
 BaseType_t xPortGET_CORE_ID( void )
 {
-    return ( portSTSR_CCRH( 0, 2 ) >> 16 ) - 1;
+    #if ( configNUMBER_OF_CORES > 1 )
+        return ( portSTSR_CCRH( 0, 2 ) >> 16 ) - 1;
+    #else
+
+        /*  In single core, xPortGET_CORE_ID is used in this port only. The dummy
+         * core ID could be controlled inside this port. */
+        return 0;
+    #endif
 }
 /*-----------------------------------------------------------*/
 
@@ -395,7 +402,7 @@ StackType_t * pxPortInitialiseStack( StackType_t * pxTopOfStack,
     pxTopOfStack--;
     *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R29; /* R29      */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R30; /* R30      */
+    *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R30; /* R30 (EP) */
     pxTopOfStack--;
     *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R1;  /* R1        */
     pxTopOfStack--;
@@ -431,7 +438,9 @@ StackType_t * pxPortInitialiseStack( StackType_t * pxTopOfStack,
  */
 BaseType_t xPortStartScheduler( void )
 {
-    BaseType_t xCurrentCore = xPortGET_CORE_ID();
+    #if ( configNUMBER_OF_CORES > 1 )
+        BaseType_t xCurrentCore = xPortGET_CORE_ID();
+    #endif
 
     /* Prevent interrupt by timer interrupt during starting first task. The
      * interrupt shall be enabled automatically by being restored from task stack */
@@ -468,11 +477,11 @@ BaseType_t xPortStartScheduler( void )
 
     /* To prevent compiler warnings in the case that the application writer
      * overrides this functionality by defining configTASK_RETURN_ADDRESS.
-     * Call vTaskSwitchContext() so link time optimisation does not remove
+     * Call vTaskSwitchContext() so link time optimization does not remove
      * the symbol. */
     vTaskSwitchContext(
         #if ( configNUMBER_OF_CORES > 1 )
-            xPortGET_CORE_ID()
+            xCurrentCore
         #endif
         );
 
@@ -492,10 +501,14 @@ static void prvTaskExitError( void )
      * Artificially force an assert() to be triggered if configASSERT() is
      * defined, then stop here so application writers can catch the error. */
     configASSERT( pdFALSE );
+    portDISABLE_INTERRUPTS();
+
+    for( ; ; )
+    {
+    }
 }
 /*-----------------------------------------------------------*/
 
-/* TODO: Add comment here */
 void vPortEndScheduler( void )
 {
     /* Not implemented in ports where there is nothing to return to.
@@ -655,6 +668,10 @@ prvExclusiveLock_Lock_success:
         BaseType_t xCoreID = xPortGET_CORE_ID();
 
         xSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
+
+        /* Error check whether vPortRecursiveLockRelease() is not called in
+         * pair with vPortRecursiveLockAcquire() */
+        configASSERT( ( uxLockNesting[ xCoreID ] == 0 ) );
         uxLockNesting[ xCoreID ]--;
 
         if( uxLockNesting[ xCoreID ] == 0 )

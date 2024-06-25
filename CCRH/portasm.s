@@ -35,6 +35,7 @@
 .extern _vTaskSwitchContext
 .extern _pvPortGetCurrentTCB
 .extern _common_interrupt_handler
+.extern _xPortGET_CORE_ID
 
 .public _vIrq_Handler
 .public _vPortStartFirstTask
@@ -84,7 +85,7 @@ portSAVE_CONTEXT .macro
     pushsp  r18, r19
 
     ; Get current TCB, the return value is stored in r10 (CCRH compiler)
-	jarl    _pvPortGetCurrentTCB, lp
+    jarl    _pvPortGetCurrentTCB, lp
     st.w    sp, 0[r10]
 
 .endm
@@ -95,7 +96,7 @@ portSAVE_CONTEXT .macro
 ;------------------------------------------------------------------------------
 portRESTORE_CONTEXT .macro
     ; Current TCB is returned by r10 (CCRH compiler)
-	jarl    _pvPortGetCurrentTCB, lp
+    jarl    _pvPortGetCurrentTCB, lp
     ld.w    0[r10], sp                  ; Restore the stack pointer from the TCB
 
     ; Restore FPU registers if FPU is enabled
@@ -207,13 +208,11 @@ _vTRAP0_Handler:
     ; The use case that portYield() is called from interrupt context as nested interrupt.
     ; Context switch should be executed at the most outer of interrupt tree.
     ; In that case, set xPortScheduleStatus to flag context switch in interrupt handler.
-    stsr    0, r10, 2
-    shr     16, r10
-    add     -1, r10
+    jarl    _xPortGET_CORE_ID, lp ; return value is contained in r10 (CCRH compiler)
     shl     2, r10
     mov     #_uxInterruptNesting, r19
     add     r10, r19
-    ld.w	0[r19], r18
+    ld.w    0[r19], r18
     cmp     r0, r18
     be      _vTRAP0_Handler_ContextSwitch
 
@@ -222,7 +221,7 @@ _vTRAP0_Handler:
 
     ; Set xPortScheduleStatus[coreID]=PORT_SCHEDULER_TASKSWITCH
     mov     1, r17
-    st.w	r17, 0[r19]
+    st.w    r17, 0[r19]
     br      _vTRAP0_Handler_Exit
 
 _vTRAP0_Handler_ContextSwitch:
@@ -250,10 +249,9 @@ _vIrq_Handler:
 
     ; Get core ID by HTCFG0, thread configuration register.
     ; Then, increase nesting count for current core.
-    stsr    0, r17, 2
-    shr     16, r17
-    add     -1, r17
-    shl     2, r17
+    jarl    _xPortGET_CORE_ID, lp ; return value is contained in r10 (CCRH compiler)
+    shl     2, r10
+    mov     r10, r17
 
     mov     #_uxInterruptNesting, r19
     add     r17, r19
@@ -309,9 +307,8 @@ _vIrq_Handler_SwitchContext:
 
     ; Get Core ID and pass to vTaskSwitchContext as parameter (CCRH compiler)
     ; The parameter is  unused in single core, no problem with this redudant setting
-    stsr    0, r6, 2
-    shr     16, r6
-    add     -1, r6
+    jarl    _xPortGET_CORE_ID, lp ; return value is contained in r10 (CCRH compiler)
+    mov     r10, r6
 
     ; vPortYeild may be called to current core again at the end of vTaskSwitchContext.
     ; This may case nested interrupt, however, it is not necessary to set
