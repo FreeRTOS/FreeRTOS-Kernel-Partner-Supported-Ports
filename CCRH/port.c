@@ -65,9 +65,22 @@
 
 /* IPIR  base address, the peripheral is used for Inter-Processor communication
  * Hardware supports 4 channels which is offset by 0x0, 0x4, 0x8, 0xC bytes from
- * base address */
-    #define portIPIR_BASE_ADDR    ( 0xFFFEEC80 )
-    #define portMEV_BASE_ADDR     ( 0xFFFEEC00 )
+ * base address. By default, channel 0 is selected. */
+    #ifdef configIPIR_CHANNEL
+        #define portIPIR_BASE_ADDR    ( ( 0xFFFEEC80 ) + ( configIPIR_CHANNEL << 2 ) )
+    #else
+        #define portIPIR_BASE_ADDR    ( 0xFFFEEC80 )
+    #endif
+
+
+/*  Address used for exclusive control for variable shared between PEs
+ * (common resources), each CPU cores have independent access path to
+ * this address. By default, G0MEV0 register is selected*/
+    #ifdef configEXCLUSIVE_ADDRESS
+        #define portMEV_BASE_ADDR    configEXCLUSIVE_ADDRESS
+    #else
+        #define portMEV_BASE_ADDR    ( 0xFFFEEC00 )
+    #endif
 #endif /* if ( configNUMBER_OF_CORES > 1 ) */
 
 /* Macros required to set up the initial stack. */
@@ -240,18 +253,19 @@ UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
  */
     void vPortIPIHander( void );
 
-/* TODO: Add comment here */
-    void vPortLockAcquire( void );
-    void vPortLockRelease( void );
-    void vPortLockAcquireFromISR( void );
-    void vPortLockReleaseFromISR( void );
+/* These below funtions implement recursive spinlock for exclusive access among
+ * cores. The core will wait until lock will be available, whilst the core which
+ * already had lock can acquire lock without waiting. This function could be
+ * call from task and interrupt context, the critical section is called as in ISR */
+    void vPortRecursiveLockAcquire( void );
+    void vPortRecursiveLockRelease( void );
 
 #endif /* (configNUMBER_OF_CORES > 1) */
 
 /*-----------------------------------------------------------*/
 
 /*
- * These below function implement interrupt mask from interrupt. They are not
+ * These below functions implement interrupt mask from interrupt. They are not
  * called in nesting, it is protected by FreeRTOS kernel.
  */
 BaseType_t xPortSetInterruptMask( void )
@@ -263,7 +277,6 @@ BaseType_t xPortSetInterruptMask( void )
 }
 /*-----------------------------------------------------------*/
 
-/* TODO: Add comment here*/
 void vPortClearInterruptMask( UBaseType_t uxSavedInterruptStatus )
 {
     BaseType_t ulPSWValue = portSTSR( portPSW_REGISTER_ID );
@@ -304,6 +317,15 @@ void * pvPortGetCurrentTCB( void )
     configASSERT( pvCurrentTCB != NULL );
 
     return pvCurrentTCB;
+}
+/*-----------------------------------------------------------*/
+
+void vPortSetSwitch( xSwitchRequired )
+{
+    if( xSwitchRequired != pdFALSE )
+    {
+        xPortScheduleStatus[ xPortGET_CORE_ID() ] = PORT_SCHEDULER_TASKSWITCH;
+    }
 }
 /*-----------------------------------------------------------*/
 
@@ -531,9 +553,14 @@ void vPortEndScheduler( void )
 #if ( configUSE_TIMERS == 1 )
     void vPortTickISR( void )
     {
-        BaseType_t xSavedInterruptStatus;
+        /* In case of multicores with SMP,  xTaskIncrementTick is required to
+         * called in critical section to avoid conflict resource as this function
+         * could be called by xTaskResumeAll() from any cores. */
+        #if ( configNUMBER_OF_CORES > 1 )
+            BaseType_t xSavedInterruptStatus;
 
-        xSavedInterruptStatus = portENTER_CRITICAL_FROM_ISR();
+            xSavedInterruptStatus = portENTER_CRITICAL_FROM_ISR();
+        #endif
         {
             /* Increment the RTOS tick. */
             if( xTaskIncrementTick() != pdFALSE )
@@ -542,7 +569,9 @@ void vPortEndScheduler( void )
                 xPortScheduleStatus[ xPortGET_CORE_ID() ] = PORT_SCHEDULER_TASKSWITCH;
             }
         }
-        portEXIT_CRITICAL_FROM_ISR( xSavedInterruptStatus );
+        #if ( configNUMBER_OF_CORES > 1 )
+            portEXIT_CRITICAL_FROM_ISR( xSavedInterruptStatus );
+        #endif
     }
 /*-----------------------------------------------------------*/
 
@@ -571,32 +600,32 @@ void vPortEndScheduler( void )
 #endif /* (configUSE_TIMERS == 1) */
 
 #if ( configNUMBER_OF_CORES > 1 )
-    #pragma inline_asm prvRecursiveLock
 
 /*
  * These functions implement spinlock mechansim among cores using hardware
  * exclusive control with atomic access by CLR1 and SET1 instruction.
  * Nesting calls to these APIs are possible.
  */
-    static void prvRecursiveLock( void )
+    #pragma inline_asm prvExclusiveLock
+    static void prvExclusiveLock( void )
     {
         /* No problem with r19, CCRH does not required to restore same value
          * before and after function call. */
         mov     # _pxPortExclusiveReg, r19
         ld.w    0[ r19 ], r19
 
-prvRecursiveRelease_Lock:
+prvExclusiveLock_Lock:
         set1    0, 0[ r19 ]
-        bz prvRecursiveLock_Lock_success
+        bz prvExclusiveLock_Lock_success
         snooze
-        br prvRecursiveRelease_Lock
+        br prvExclusiveLock_Lock
 
-prvRecursiveLock_Lock_success:
+prvExclusiveLock_Lock_success:
     }
 /*-----------------------------------------------------------*/
 
-    #pragma inline_asm prvRecursiveRelease
-    static void prvRecursiveRelease( void )
+    #pragma inline_asm prvExclusiveRelease
+    static void prvExclusiveRelease( void )
     {
         mov     # _pxPortExclusiveReg, r19
         ld.w    0[ r19 ], r19
@@ -604,7 +633,7 @@ prvRecursiveLock_Lock_success:
     }
 /*-----------------------------------------------------------*/
 
-    void vPortLockAcquire( void )
+    void vPortRecursiveLockAcquire( void )
     {
         BaseType_t xSavedInterruptStatus;
         BaseType_t xCoreID = xPortGET_CORE_ID();
@@ -613,14 +642,14 @@ prvRecursiveLock_Lock_success:
 
         if( uxLockNesting[ xCoreID ] == 0 )
         {
-            prvRecursiveLock();
+            prvExclusiveLock();
         }
 
         uxLockNesting[ xCoreID ]++;
         portCLEAR_INTERRUPT_MASK_FROM_ISR( xSavedInterruptStatus );
     }
 
-    void vPortLockRelease( void )
+    void vPortRecursiveLockRelease( void )
     {
         BaseType_t xSavedInterruptStatus;
         BaseType_t xCoreID = xPortGET_CORE_ID();
@@ -630,7 +659,7 @@ prvRecursiveLock_Lock_success:
 
         if( uxLockNesting[ xCoreID ] == 0 )
         {
-            prvRecursiveRelease();
+            prvExclusiveRelease();
         }
 
         portCLEAR_INTERRUPT_MASK_FROM_ISR( xSavedInterruptStatus );

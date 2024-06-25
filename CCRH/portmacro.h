@@ -110,18 +110,10 @@
 /* Scheduler utilities */
 
 /* Called at the end of an ISR that can cause a context switch */
+    extern void vPortSetSwitch( void );
+    #define portEND_SWITCHING_ISR( xSwitchRequired )    vPortSetSwitch( vPortSetSwitch )
 
-    #define portEND_SWITCHING_ISR( xSwitchRequired )    \
-    {                                                   \
-        extern volatile BaseType_t xPortSwitchRequired; \
-                                                        \
-        if( xSwitchRequired != pdFALSE )                \
-        {                                               \
-            xPortSwitchRequired = pdTRUE;               \
-        }                                               \
-    }
-
-    #define portYIELD_FROM_ISR( x )    portEND_SWITCHING_ISR( x )
+    #define portYIELD_FROM_ISR( x )                     portEND_SWITCHING_ISR( x )
 
 /* Use to transfer control from one task to perform other tasks of higher priority */
     extern void vPortYield( void );
@@ -134,12 +126,6 @@
 
         #define portGET_CORE_ID()    xPortGET_CORE_ID()
         #define coreid    xPortGET_CORE_ID()
-
-/* Set the interrupt mask. */
-        #define portSET_INTERRUPT_MASK()         0
-
-/* Clear the interrupt mask. */
-        #define portCLEAR_INTERRUPT_MASK( x )    ( ( void ) ( x ) )
 
 /* Request the core ID x to yield. */
         extern void vPortYieldCore( unsigned int coreID );
@@ -156,13 +142,13 @@
         #define portGET_TASK_LOCK()
         #define portRELEASE_TASK_LOCK()
     #else
-        extern void vPortLockAcquire( void );
-        extern void vPortLockRelease( void );
+        extern void vPortRecursiveLockAcquire( void );
+        extern void vPortRecursiveLockRelease( void );
 
-        #define portGET_ISR_LOCK()         vPortLockAcquire()
-        #define portRELEASE_ISR_LOCK()     vPortLockRelease()
-        #define portGET_TASK_LOCK()        vPortLockAcquire()
-        #define portRELEASE_TASK_LOCK()    vPortLockRelease()
+        #define portGET_ISR_LOCK()         vPortRecursiveLockAcquire()
+        #define portRELEASE_ISR_LOCK()     vPortRecursiveLockRelease()
+        #define portGET_TASK_LOCK()        vPortRecursiveLockAcquire()
+        #define portRELEASE_TASK_LOCK()    vPortRecursiveLockRelease()
     #endif /* if ( configNUMBER_OF_CORES == 1 ) */
 
 /*-----------------------------------------------------------*/
@@ -180,9 +166,12 @@
     #define portEXIT_CRITICAL()     vTaskExitCritical()
 
 /*-----------------------------------------------------------*/
+/* Macros to set and clear the interrupt mask. */
     BaseType_t xPortSetInterruptMask();
     void vPortClearInterruptMask( UBaseType_t );
 
+    #define portSET_INTERRUPT_MASK()                  xPortSetInterruptMask()
+    #define portCLEAR_INTERRUPT_MASK( x )             vPortClearInterruptMask( ( x ) )
     #define portSET_INTERRUPT_MASK_FROM_ISR()         xPortSetInterruptMask()
     #define portCLEAR_INTERRUPT_MASK_FROM_ISR( x )    vPortClearInterruptMask( ( x ) )
 
