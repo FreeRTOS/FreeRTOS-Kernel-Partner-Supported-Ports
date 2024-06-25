@@ -98,8 +98,8 @@
     #define taskENABLE_INTERRUPTS()     portENABLE_INTERRUPTS()
     #define taskDISABLE_INTERRUPTS()    portDISABLE_INTERRUPTS()
 
-/* Multi-core */
-    #define portSUPPORT_SMP              1 /* this is an SMP build which means configNUM_CORES is relevant */
+/* SMP build which means configNUM_CORES is relevant */
+    #define portSUPPORT_SMP              1
 
     #define portMAX_CORE_COUNT           2
     #ifndef configNUMBER_OF_CORES

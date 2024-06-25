@@ -76,13 +76,16 @@ portSAVE_CONTEXT .macro
     ; Save FPU registers to stack if FPU is enabled
     mov     FPU_MSK, r19
     tst     r15, r19
-    bz      12                           ; Jump over next 3 instructions: stsr (4 bytes)*2 + pushsp (4 bytes)
+
+    ; Jump over next 3 instructions: stsr (4 bytes)*2 + pushsp (4 bytes)
+    bz      12
     stsr    FPSR, r18
     stsr    FPEPC, r19
     pushsp  r18, r19
 
-	jarl    _pvPortGetCurrentTCB, lp    ; Get current TCB, the return value is stored in r10 (CCRH compiler)
-    st.w    sp, 0[r10]                   ; Save the stack pointer in the TCB
+    ; Get current TCB, the return value is stored in r10 (CCRH compiler)
+	jarl    _pvPortGetCurrentTCB, lp
+    st.w    sp, 0[r10]
 
 .endm
 
@@ -91,14 +94,17 @@ portSAVE_CONTEXT .macro
 ; Context restoring
 ;------------------------------------------------------------------------------
 portRESTORE_CONTEXT .macro
-	jarl    _pvPortGetCurrentTCB, lp   ; Get current TCB, the return value is stored in r10 (CCRH compiler)
+    ; Current TCB is returned by r10 (CCRH compiler)
+	jarl    _pvPortGetCurrentTCB, lp
     ld.w    0[r10], sp                  ; Restore the stack pointer from the TCB
 
     ; Restore FPU registers if FPU is enabled
     mov     FPU_MSK, r19
     stsr    PSW, r18
     tst     r18, r19
-    bz      12                          ; Jump over next 3 instructions: stsr (4 bytes)*2 + popsp (4 bytes)
+
+     ; Jump over next 3 instructions: stsr (4 bytes)*2 + popsp (4 bytes)
+    bz      12
     popsp   r18, r19
     ldsr    r18, FPEPC
     ldsr    r19, FPSR
@@ -124,8 +130,9 @@ portRESTORE_CONTEXT .macro
 ;------------------------------------------------------------------------------
 SAVE_REGISTER .macro
     ; Save general-purpose registers and EIPSW, EIPC, EIIC, CTPSW, CTPC into stack.
-    ; Callee-Save registers (r20 to r30) are not used in interrupt handler and guaranteed no change after function call
-    ; So, don't need to save register to optimize the used stack memory.
+    ; Callee-Save registers (r20 to r30) are not used in interrupt handler and
+    ; guaranteed no change after function call. So, don't need to save register
+    ; to optimize the used stack memory.
     pushsp  r5, r19
     $nowarning
     pushsp  r1, r2
@@ -198,8 +205,8 @@ _vTRAP0_Handler:
     portSAVE_CONTEXT
 
     ; The use case that portYield() is called from interrupt context as nested interrupt.
-    ; Context switch should be executed at the most outer of interrupt tree. In that case, just set xPortScheduleStatus
-    ; to flag context switch in interrupt handler.
+    ; Context switch should be executed at the most outer of interrupt tree.
+    ; In that case, set xPortScheduleStatus to flag context switch in interrupt handler.
     stsr    0, r10, 2
     shr     16, r10
     add     -1, r10
@@ -212,15 +219,19 @@ _vTRAP0_Handler:
 
     mov     #_xPortScheduleStatus, r19
     add     r10, r19
-    mov     1, r17                             ; Set xPortScheduleStatus[coreID]=PORT_SCHEDULER_TASKSWITCH
+
+    ; Set xPortScheduleStatus[coreID]=PORT_SCHEDULER_TASKSWITCH
+    mov     1, r17
     st.w	r17, 0[r19]
     br      _vTRAP0_Handler_Exit
 
 _vTRAP0_Handler_ContextSwitch:
-    mov     r10, r6                            ; Pass coreID (r10) as parameter by r6 (CCRH compiler) in SMP support.
+    ; Pass coreID (r10) as parameter by r6 (CCRH compiler) in SMP support.
+    mov     r10, r6
     ; Call the scheduler to select the next task.
-    ; vPortYeild may be called to current core again at the end of vTaskSwitchContext. This may case nested interrupt,
-    ; however, it is not necessary to set uxInterruptNesting (currently 0) for nested trap0 exception. The user interrupt
+    ; vPortYeild may be called to current core again at the end of vTaskSwitchContext.
+    ; This may case nested interrupt, however, it is not necessary to set
+    ; uxInterruptNesting (currently 0) for nested trap0 exception. The user interrupt
     ; (EI level interrupt) is not accepted inside of trap0 exception.
     jarl    _vTaskSwitchContext, lp
 
@@ -234,17 +245,18 @@ _vTRAP0_Handler_Exit:
 ; Handler interrupt service routine (ISR).
 ;------------------------------------------------------------------------------
 _vIrq_Handler:
-    ;Save used registers.
+    ; Save used registers.
     SAVE_REGISTER
 
-    ;Increment nesting count.
-    stsr    0, r17, 2                   ; Get HTCFG0, thread configuration register
-    shr     16, r17                     ; Shift right by 16 to get PEID; bit 18 to 16
-    add     -1, r17                     ; Sub 1 to the core ID to make it 0 or 1
-    shl     2, r17                      ; Multiply core ID by 4 (size of word) to get the correct offset
+    ; Get core ID by HTCFG0, thread configuration register.
+    ; Then, increase nesting count for current core.
+    stsr    0, r17, 2
+    shr     16, r17
+    add     -1, r17
+    shl     2, r17
 
     mov     #_uxInterruptNesting, r19
-    add     r17, r19                    ; Adjust address to uxInterruptNesting[coreID]
+    add     r17, r19
     ld.w    0[r19], r18
     addi    0x1, r18, r16
     st.w    r16, 0[r19]
@@ -254,7 +266,10 @@ _vIrq_Handler:
     ;Call the interrupt handler.
     stsr    EIIC, r6
     andi    EIIC_MSK, r6, r6
-    mov     #_uxPortMaxInterruptDepth, r15    ; Do not enable interrupt for nesting if it reach maximum depth.
+
+    ; Do not enable interrupt for nesting. Stackover flow may occurs if the
+    ; depth of nesting interrupt is exceeded.
+    mov     #_uxPortMaxInterruptDepth, r15
     cmp     r16, r15
     be      4                                 ; Jump over ei instruction
     ei
@@ -289,14 +304,18 @@ _vIrq_Handler_SwitchContext:
     add     -1, r18
     bnz     _vIrq_Handler_StartFirstTask
     ; Restore used registers before saving the context to the task stack.
-    RESTORE_REGISTER                   ; Restore context of interrupt
-    portSAVE_CONTEXT                   ; Save task context before switching tasks
-    stsr    0, r6, 2                   ;
-    shr     16, r6                     ; Get Core ID and pass to vTaskSwitchContext as parameter (CCRH compiler)
-    add     -1, r6                     ; The parameter is  unused in single core, no problem with this redudant setting
+    RESTORE_REGISTER
+    portSAVE_CONTEXT
 
-    ; vPortYeild may be called to current core again at the end of vTaskSwitchContext. This may case nested interrupt,
-    ; however, it is not necessary to set uxInterruptNesting (currently 0) for  trap0 exception. The user interrupt
+    ; Get Core ID and pass to vTaskSwitchContext as parameter (CCRH compiler)
+    ; The parameter is  unused in single core, no problem with this redudant setting
+    stsr    0, r6, 2
+    shr     16, r6
+    add     -1, r6
+
+    ; vPortYeild may be called to current core again at the end of vTaskSwitchContext.
+    ; This may case nested interrupt, however, it is not necessary to set
+    ; uxInterruptNesting (currently 0) for  trap0 exception. The user interrupt
     ; (EI level interrupt) is not accepted inside of trap0 exception.
     jarl    _vTaskSwitchContext, lp    ;
     portRESTORE_CONTEXT

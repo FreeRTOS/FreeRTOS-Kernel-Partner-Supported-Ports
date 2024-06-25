@@ -40,28 +40,32 @@
 ***********************************************************/
 
 /* Hardware specific macros */
-#define portINITIAL_PSW_MSK          ( 0x000f8000 )    /* PSW.EBV and PSW.CUx bits are kept as current status */
-#define portCURRENT_PSW_VALUE        ( portSTSR( 5 ) ) /* CCRH Intrinsic function to get PSW register value */
+#define portPSW_REGISTER_ID          ( 5 )
+#define portFPSR_REGISTER_ID         ( 6 )
+/* PSW.EBV and PSW.CUx bits are kept as current status */
+#define portINITIAL_PSW_MSK          ( 0x000f8000 )
+#define portCURRENT_PSW_VALUE        ( portSTSR( portPSW_REGISTER_ID ) )
 #define portCURRENT_SR_ZERO_VALUE    ( ( StackType_t ) 0x00000000 )
-#define portCURRENT_FPSR_VALUE       ( portSTSR( 6 ) )
+#define portCURRENT_FPSR_VALUE       ( portSTSR( portFPSR_REGISTER_ID ) )
+/* Mask for FPU configuration bits (FN, PEM, RM, FS) */
 #define portINITIAL_FPSR_MSK         ( 0x00ae0000 )
 
 #if ( configUSE_TIMERS == 1 )
 
-/* Define necessary hardware IO for OSTM timer. OSTM0 is used by default as it common for almost device variant
- * If it conflicts with application, the application shall implement another timer.
- */
-    #define portOSTM_EIC_ADDR    ( 0xFFFFB0A8 )        /* Address of interrupt control register for OSTM timer */
-    #define portOSTM0CMP_ADDR    ( 0xFFD70000 )        /* Address of OSTM register for Tick Count setting */
-    #define portOSTM0CTL_ADDR    ( 0xFFD70020 )        /* Address of OSTM configuration register */
-    #define portOSTM0TS_ADDR     ( 0xFFD70014 )        /* Address of OSTM register for start trigger */
+/* Define necessary hardware IO for OSTM timer. OSTM0 is used by default as
+ * it is common for almost device variants.  * If it conflicts with application,
+ * the application shall implement another timer.*/
+    #define portOSTM_EIC_ADDR    ( 0xFFFFB0A8 )
+    #define portOSTM0CMP_ADDR    ( 0xFFD70000 )
+    #define portOSTM0CTL_ADDR    ( 0xFFD70020 )
+    #define portOSTM0TS_ADDR     ( 0xFFD70014 )
 #endif
 
 #if ( configNUMBER_OF_CORES > 1 )
 
 /* IPIR  base address, the peripheral is used for Inter-Processor communication
- * Hardware supports 4 channels which is offset by 0x0, 0x4, 0x8, 0xC bytes from base address
- */
+ * Hardware supports 4 channels which is offset by 0x0, 0x4, 0x8, 0xC bytes from
+ * base address */
     #define portIPIR_BASE_ADDR    ( 0xFFFEEC80 )
     #define portMEV_BASE_ADDR     ( 0xFFFEEC00 )
 #endif /* if ( configNUMBER_OF_CORES > 1 ) */
@@ -110,18 +114,19 @@
     #define portOSTM_COUNTER_STOP               ( 0x01U ) /* Stops the counter */
 
 /* OSTM Control Register (OSTMnCTL) */
-    #define portOSTM_MODE_INTERVAL_TIMER        ( 0x00U ) /* Interval timer mode */
-    #define portOSTM_MODE_FREE_RUNNING          ( 0x02U ) /* Free-running comparison mode */
-    #define portOSTM_START_INTERRUPT_DISABLE    ( 0x00U ) /* Disables the interrupts when counting starts */
-    #define portOSTM_START_INTERRUPT_ENABLE     ( 0x01U ) /* Enables the interrupts when counting starts */
+    #define portOSTM_MODE_INTERVAL_TIMER        ( 0x00U )
+    #define portOSTM_MODE_FREE_RUNNING          ( 0x02U )
+    /* Disables or Enable the interrupts when counting starts */
+    #define portOSTM_START_INTERRUPT_DISABLE    ( 0x00U )
+    #define portOSTM_START_INTERRUPT_ENABLE     ( 0x01U )
 
 /* Interrupt vector method select (TBxxx) */
-    #define portINT_DIRECT_VECTOR               ( 0x0U )  /* Direct jumping to an address by the level of priority */
-    #define portINT_TABLE_VECTOR                ( 0x1U )  /* Table reference */
+    #define portINT_DIRECT_VECTOR               ( 0x0U )
+    #define portINT_TABLE_VECTOR                ( 0x1U )
 
 /* Interrupt mask (MKxxx) */
-    #define portINT_PROCESSING_ENABLED          ( 0x0U )  /* Enables interrupt processing */
-    #define portINT_PROCESSING_DISABLED         ( 0x1U )  /* Disables interrupt processing */
+    #define portINT_PROCESSING_ENABLED          ( 0x0U )
+    #define portINT_PROCESSING_DISABLED         ( 0x1U )
 
 /* Specify 16 interrupt priority levels */
     #define portINT_PRIORITY_HIGHEST            ( 0x0000U ) /* Level 0 (highest) */
@@ -157,11 +162,13 @@
 
 #ifndef configMAX_INT_NESTING
 
-/* Set the default value for depth of nested interrupt. In theory, the microcontroller have mechanism to limit number
- * of nested level of interrupt by priority (maximum 16 levels). However, the large stack memory should be prepared for
- * each task to save resource in interrupt handler. Therefore, it is necessary to limit depth of nesting interrupt to
- * optimize memory usage. In addition, the execution time of interrupt handler should be very short (typically not
- * exceed 20us), this constraint does not impact to system.
+/* Set the default value for depth of nested interrupt. In theory, the
+ * microcontroller have mechanism to limit number of nested level of interrupt
+ * by priority (maximum 16 levels). However, the large stack memory should be
+ * prepared for each task to save resource in interrupt handler. Therefore, it
+ * is necessary to limit depth of nesting interrupt to optimize memory usage.
+ * In addition, the execution time of interrupt handler should be very short
+ * (typically not exceed 20us), this constraint does not impact to system.
  */
     #define configMAX_INT_NESTING    2UL
 #endif
@@ -184,8 +191,9 @@ static void prvTaskExitError( void );
 #if ( configNUMBER_OF_CORES > 1 )
 
 /*
- * Functions implement spin-lock between cores by atomic accesses to Exclusive Control Register (G0MEVm)
- * There are separated access path between CPU cores, but they should wait if access to same register
+ * Functions implement spin-lock between cores by atomic accesses to Exclusive
+ * Control Register (G0MEVm). There are separated access path between CPU cores,
+ * but they should wait if access to same register
  */
     static void prvRecursiveLock( void );
     static void prvRecursiveRelease( void );
@@ -196,17 +204,19 @@ static void prvTaskExitError( void );
  */
 extern void vPortStartFirstTask( void );
 
-/* The flag for the status scheduler request on each cores which are starting first task and switching context */
+/* Scheduler request on each cores which are starting first task and switching context */
 volatile BaseType_t xPortScheduleStatus[ configNUMBER_OF_CORES ] = { 0 };
 
-/* Counts the interrupt nesting depth. A context switch is only performed if the nesting depth is 0.
- * In addition, the interrupt shares same stack allocated for each tasks. With supporting nesting interrupt, the stack
- * may be overflowed. It is necessary to control maximum stack depth.
+/* Counts the interrupt nesting depth. A context switch is only performed if
+ * the nesting depth is 0. In addition, the interrupt shares same stack allocated
+ * for each tasks. With supporting nesting interrupt, the stack may be overflowed.
+ * It is necessary to control maximum stack depth.
  */
 volatile UBaseType_t uxInterruptNesting[ configNUMBER_OF_CORES ] = { 0 };
 volatile const UBaseType_t uxPortMaxInterruptDepth = configMAX_INT_NESTING - 1;
 
-/* Count number of nested locks by same cores. The lock is completely released only if this count is decreased to 0 */
+/* Count number of nested locks by same cores. The lock is completely released
+ * only if this count is decreased to 0 */
 UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
 
 #if ( configNUMBER_OF_CORES > 1 )
@@ -215,7 +225,9 @@ UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
 #endif
 
 #if ( configUSE_TIMERS == 1 )
-/* Interrupt handler for OSTM timer which handling tick increment and resulting to switch context. */
+
+/* Interrupt handler for OSTM timer which handling tick increment and resulting
+ * to switch context. */
     void vPortTickISR( void );
 #endif /* (configUSE_TIMERS == 1) */
 
@@ -224,8 +236,7 @@ UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
     void vPortYieldCore( uint32_t xCoreID );
 
 /*
- * Handler for inter-processos interrupt in second cores. The interrupt is triggered by portYIELD_CORE().
- * vTaskSwitchContext() is invoked to switch tasks
+ * Inter-processos interrupt handler. The interrupt is triggered by portYIELD_CORE().
  */
     void vPortIPIHander( void );
 
@@ -240,27 +251,28 @@ UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
 /*-----------------------------------------------------------*/
 
 /*
- * These below function implement interrupt mask from interrupt. They are not called in nesting, it is protected
- * by FreeRTOS kernel.
+ * These below function implement interrupt mask from interrupt. They are not
+ * called in nesting, it is protected by FreeRTOS kernel.
  */
 BaseType_t xPortSetInterruptMask( void )
 {
     portDISABLE_INTERRUPTS();
 
     /* It returns current value of Program Status Word register */
-    return portSTSR( 5 );
+    return portSTSR( portPSW_REGISTER_ID );
 }
 /*-----------------------------------------------------------*/
 
 /* TODO: Add comment here*/
 void vPortClearInterruptMask( UBaseType_t uxSavedInterruptStatus )
 {
-    BaseType_t ulPSWValue = portSTSR( 5 );
+    BaseType_t ulPSWValue = portSTSR( portPSW_REGISTER_ID );
 
-    /* Interrupt Disable status is indicates by bit#5 of PSW (1: Interrupt is disabled; 0: Interrupt is enabled) */
+    /* Interrupt Disable status is indicates by bit#5 of PSW
+    * (1: Interrupt is disabled; 0: Interrupt is enabled) */
     /* Revert to the status before interrupt mask. */
     ulPSWValue |= ( 0x020 & uxSavedInterruptStatus );
-    portLDSR( 5, ulPSWValue );
+    portLDSR( portPSW_REGISTER_ID, ulPSWValue );
 
     portENABLE_INTERRUPTS();
 }
@@ -279,9 +291,10 @@ BaseType_t xPortGET_CORE_ID( void )
 /*-----------------------------------------------------------*/
 
 /*
- * This port supports both multi-cores and single-core, whilst TCB stack variables are different which are respectively
- * pxCurrentTCB (single-core) and pxCurrentTCBs[] (multiple-cores).
- * This function is defined to obtains TCBs of current cores. Also, the C function could switch to corresponding
+ * This port supports both multi-cores and single-core, whilst TCB stack
+ * variables are different which are respectively pxCurrentTCB (single-core)
+ * and pxCurrentTCBs[] (multiple-cores). This function is defined to obtains
+ * TCBs of current cores. Also, the C function could switch to corresponding
  * pointer by pre-compile conditions.
  */
 void * pvPortGetCurrentTCB( void )
@@ -369,22 +382,22 @@ StackType_t * pxPortInitialiseStack( StackType_t * pxTopOfStack,
     pxTopOfStack--;
 
     /* Keep System pre-configuration (HV, CUx, EBV) as current setting in PSW register */
-    *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MSK ); /* EIPSW     */
+    *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MSK ); /* EIPSW */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) pxCode;                                          /* EIPC      */
+    *pxTopOfStack = ( StackType_t ) pxCode;                                          /* EIPC */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                       /* EIIC      */
+    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                       /* EIIC */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MSK ); /* CTPSW     */
+    *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MSK ); /* CTPSW */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                       /* CTPC      */
+    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                       /* CTPC */
 
 /* __FPU is defined by CCRH compiler if FPU is enabled */
     #if ( configENABLE_FPU == 1 )
         pxTopOfStack--;
-        *pxTopOfStack = ( StackType_t ) ( portCURRENT_FPSR_VALUE & portINITIAL_FPSR_MSK ); /* FPSR      */
+        *pxTopOfStack = ( StackType_t ) ( portCURRENT_FPSR_VALUE & portINITIAL_FPSR_MSK ); /* FPSR */
         pxTopOfStack--;
-        *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                         /* FPEPC     */
+        *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                         /* FPEPC */
     #endif /* (configENABLE_FPU == 1) */
 
     return pxTopOfStack;
@@ -398,6 +411,8 @@ BaseType_t xPortStartScheduler( void )
 {
     BaseType_t xCurrentCore = xPortGET_CORE_ID();
 
+    /* Prevent interrupt by timer interrupt during starting first task. The
+     * interrupt shall be enabled automatically by being restored from task stack */
     portDISABLE_INTERRUPTS();
 
     /* Setup the tick interrupt */
@@ -409,13 +424,15 @@ BaseType_t xPortStartScheduler( void )
         {
             if( xCoreID != xCurrentCore )
             {
-                /* Send yielding request to other cores with flag to start first task. TaskContextSwitch is not executed */
+                /* Send yielding request to other cores with flag to start
+                 * first task. TaskContextSwitch is not executed */
                 xPortScheduleStatus[ xCoreID ] = PORT_SCHEDULER_STARTFIRSTTASK;
                 vPortYieldCore( xCoreID );
             }
             else
             {
-                /* Nothing to do. The first task is started in this call by below vPortStartFirstTask() */
+                /* Nothing to do. The first task is started in this call by
+                 * below vPortStartFirstTask() */
                 xPortScheduleStatus[ xCoreID ] = PORT_SCHEDULER_NOREQUEST;
             }
         }
@@ -427,9 +444,10 @@ BaseType_t xPortStartScheduler( void )
     /* Should never get here as the tasks will now be executing! */
     prvTaskExitError();
 
-    /* To prevent compiler warnings in the case that the application writer overrides this functionality
-     * by defining configTASK_RETURN_ADDRESS. Call vTaskSwitchContext() so link time optimisation does
-     * not remove the symbol. */
+    /* To prevent compiler warnings in the case that the application writer
+     * overrides this functionality by defining configTASK_RETURN_ADDRESS.
+     * Call vTaskSwitchContext() so link time optimisation does not remove
+     * the symbol. */
     vTaskSwitchContext(
         #if ( configNUMBER_OF_CORES > 1 )
             xPortGET_CORE_ID()
@@ -476,10 +494,11 @@ void vPortEndScheduler( void )
             /* Determine the IPI register based on the target core ID */
             pulIPIRReg = ( volatile uint32_t * ) ( portIPIR_BASE_ADDR );
 
-            /*Inter-processor interrupt generates an interrupt request by writing 1
-             * to applicable bits of PE to which an interrupt of the inter-processor interrupt register (IPIR_CHn
-             * (n = 0 to 3)) are requested. The interrupt should be enabled by application in corresponding cores including
-             * PSW.ID (EI instruction) and interrupt control setting for ICIPIRn channel (interrupt mask, vector method)
+            /*Inter-processor interrupt generates an interrupt request by
+             * writing 1 to applicable bits of target cores. The interrupt
+             * should be enabled by application in  corresponding cores
+             * including PSW.ID (EI instruction) and interrupt control setting
+             * for ICIPIRn channel (interrupt mask, vector method)
              */
             *pulIPIRReg = ( 1 << xCoreID );
         }
@@ -492,14 +511,14 @@ void vPortEndScheduler( void )
 /*-----------------------------------------------------------*/
 
 /*
- * Handler for inter-processos interrupt in second cores. The interrupt is triggered by portYIELD_CORE().
- * vTaskSwitchContext() is invoked to switch tasks
+ * Handler for inter-processos interrupt in second cores. The interrupt is
+ * triggered by portYIELD_CORE(). vTaskSwitchContext() is invoked to switch tasks
  */
     void vPortIPIHander( void )
     {
         BaseType_t xCurrentCore = xPortGET_CORE_ID();
 
-        /* The 1st of yielding core is to start 1st task, TaskSwitchContext is not executed */
+        /* 1st execution starts 1st task, TaskSwitchContext is not executed */
         if( PORT_SCHEDULER_STARTFIRSTTASK != xPortScheduleStatus[ xCurrentCore ] )
         {
             xPortScheduleStatus[ xCurrentCore ] = PORT_SCHEDULER_TASKSWITCH;
@@ -532,9 +551,10 @@ void vPortEndScheduler( void )
         volatile uint32_t * pulOSTMIntReg;
 
         /* Interrupt configuration for OSTM Timer
-         * By default, the second lowest priority is set for timer interrupt to avoid blocking other interrupt.
-         * Normally, user could set the lowest priority for non-critical event. It try to keep timer on time.
-         * In addition, direct vector table is used by default (TODO: User can configure priority and interrupt method)
+         * By default, the second lowest priority is set for timer interrupt to
+         * avoid blocking other interrupt. Normally, user could set the lowest
+         * priority for non-critical event. It try to keep timer on time.
+         * In addition, direct vector table is used by default.
          */
         pulOSTMIntReg = ( volatile uint32_t * ) portOSTM_EIC_ADDR;
         *pulOSTMIntReg = ( portINT_PROCESSING_ENABLED | portINT_DIRECT_VECTOR | portINT_PRIORITY_LEVEL14 );
@@ -554,11 +574,14 @@ void vPortEndScheduler( void )
     #pragma inline_asm prvRecursiveLock
 
 /*
- * These functions implement spinlock mechansim among cores using hardware exclusive control with atomic access by
- * CLR1 and SET1 instruction. Nesting calls to these APIs are possible.
+ * These functions implement spinlock mechansim among cores using hardware
+ * exclusive control with atomic access by CLR1 and SET1 instruction.
+ * Nesting calls to these APIs are possible.
  */
     static void prvRecursiveLock( void )
     {
+        /* No problem with r19, CCRH does not required to restore same value
+         * before and after function call. */
         mov     # _pxPortExclusiveReg, r19
         ld.w    0[ r19 ], r19
 
