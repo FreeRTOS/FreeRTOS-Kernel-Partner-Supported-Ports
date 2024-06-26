@@ -110,7 +110,7 @@
 /* Scheduler utilities */
 
 /* Called at the end of an ISR that can cause a context switch */
-    extern void vPortSetSwitch( void );
+    extern void vPortSetSwitch( BaseType_t vPortSetSwitch );
     #define portEND_SWITCHING_ISR( xSwitchRequired )    vPortSetSwitch( vPortSetSwitch )
 
     #define portYIELD_FROM_ISR( x )                     portEND_SWITCHING_ISR( x )

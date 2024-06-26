@@ -208,8 +208,8 @@ static void prvTaskExitError( void );
  * Control Register (G0MEVm). There are separated access path between CPU cores,
  * but they should wait if access to same register
  */
-    static void prvRecursiveLock( void );
-    static void prvRecursiveRelease( void );
+    static void prvExclusiveLock( void );
+    static void prvExclusiveRelease( void );
 #endif
 
 /*
@@ -327,7 +327,7 @@ void * pvPortGetCurrentTCB( void )
 }
 /*-----------------------------------------------------------*/
 
-void vPortSetSwitch( xSwitchRequired )
+void vPortSetSwitch( BaseType_t xSwitchRequired )
 {
     if( xSwitchRequired != pdFALSE )
     {
@@ -615,7 +615,7 @@ void vPortEndScheduler( void )
 #if ( configNUMBER_OF_CORES > 1 )
 
 /*
- * These functions implement spinlock mechansim among cores using hardware
+ * These functions implement spin-lock mechanism among cores using hardware
  * exclusive control with atomic access by CLR1 and SET1 instruction.
  * Nesting calls to these APIs are possible.
  */
@@ -671,7 +671,7 @@ prvExclusiveLock_Lock_success:
 
         /* Error check whether vPortRecursiveLockRelease() is not called in
          * pair with vPortRecursiveLockAcquire() */
-        configASSERT( ( uxLockNesting[ xCoreID ] == 0 ) );
+        configASSERT( ( uxLockNesting[ xCoreID ] > 0 ) );
         uxLockNesting[ xCoreID ]--;
 
         if( uxLockNesting[ xCoreID ] == 0 )
