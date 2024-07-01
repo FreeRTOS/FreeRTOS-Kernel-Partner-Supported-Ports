@@ -1,5 +1,5 @@
 /*
- * FreeRTOS Kernel V11.0.1
+ * FreeRTOS Kernel V11.1.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -42,24 +42,24 @@
 /* Hardware specific macros */
 #define portPSW_REGISTER_ID          ( 5 )
 #define portFPSR_REGISTER_ID         ( 6 )
+
 /* PSW.EBV and PSW.CUx bits are kept as current status */
-#define portINITIAL_PSW_MSK          ( 0x000f8000 )
+#define portINITIAL_PSW_MASK         ( 0x000f8000 )
 #define portCURRENT_PSW_VALUE        ( portSTSR( portPSW_REGISTER_ID ) )
 #define portCURRENT_SR_ZERO_VALUE    ( ( StackType_t ) 0x00000000 )
 #define portCURRENT_FPSR_VALUE       ( portSTSR( portFPSR_REGISTER_ID ) )
-/* Mask for FPU configuration bits (FN, PEM, RM, FS) */
-#define portINITIAL_FPSR_MSK         ( 0x00ae0000 )
 
-#if ( configUSE_TIMERS == 1 )
+/* Mask for FPU configuration bits (FN, PEM, RM, FS) */
+#define portINITIAL_FPSR_MASK        ( 0x00ae0000 )
+#define portPSW_ID_MASK              ( 0x00000020 )
 
 /* Define necessary hardware IO for OSTM timer. OSTM0 is used by default as
- * it is common for almost device variants.  * If it conflicts with application,
+ * it is common for almost device variants. If it conflicts with application,
  * the application shall implement another timer.*/
-    #define portOSTM_EIC_ADDR    ( 0xFFFFB0A8 )
-    #define portOSTM0CMP_ADDR    ( 0xFFD70000 )
-    #define portOSTM0CTL_ADDR    ( 0xFFD70020 )
-    #define portOSTM0TS_ADDR     ( 0xFFD70014 )
-#endif
+#define portOSTM_EIC_ADDR            ( 0xFFFFB0A8 )
+#define portOSTM0CMP_ADDR            ( 0xFFD70000 )
+#define portOSTM0CTL_ADDR            ( 0xFFD70020 )
+#define portOSTM0TS_ADDR             ( 0xFFD70014 )
 
 #if ( configNUMBER_OF_CORES > 1 )
 
@@ -71,7 +71,6 @@
     #else
         #define portIPIR_BASE_ADDR    ( 0xFFFEEC80 )
     #endif
-
 
 /*  Address used for exclusive control for variable shared between PEs
  * (common resources), each CPU cores have independent access path to
@@ -119,52 +118,50 @@
 * Typedef definitions
 ***********************************************************/
 
-#if ( configUSE_TIMERS == 1 )
 /* OSTM Count Start Trigger Register (OSTMnTS) */
-    #define portOSTM_COUNTER_START              ( 0x01U ) /* Starts the counter */
+#define portOSTM_COUNTER_START              ( 0x01U ) /* Starts the counter */
 
 /* OSTM Count Stop Trigger Register (OSTMnTT) */
-    #define portOSTM_COUNTER_STOP               ( 0x01U ) /* Stops the counter */
+#define portOSTM_COUNTER_STOP               ( 0x01U ) /* Stops the counter */
 
 /* OSTM Control Register (OSTMnCTL) */
-    #define portOSTM_MODE_INTERVAL_TIMER        ( 0x00U )
-    #define portOSTM_MODE_FREE_RUNNING          ( 0x02U )
-    /* Disables or Enable the interrupts when counting starts */
-    #define portOSTM_START_INTERRUPT_DISABLE    ( 0x00U )
-    #define portOSTM_START_INTERRUPT_ENABLE     ( 0x01U )
+#define portOSTM_MODE_INTERVAL_TIMER        ( 0x00U )
+#define portOSTM_MODE_FREE_RUNNING          ( 0x02U )
+
+/* Disables or Enable the interrupts when counting starts */
+#define portOSTM_START_INTERRUPT_DISABLE    ( 0x00U )
+#define portOSTM_START_INTERRUPT_ENABLE     ( 0x01U )
 
 /* Interrupt vector method select (TBxxx) */
-    #define portINT_DIRECT_VECTOR               ( 0x0U )
-    #define portINT_TABLE_VECTOR                ( 0x1U )
+#define portINT_DIRECT_VECTOR               ( 0x0U )
+#define portINT_TABLE_VECTOR                ( 0x1U )
 
 /* Interrupt mask (MKxxx) */
-    #define portINT_PROCESSING_ENABLED          ( 0x0U )
-    #define portINT_PROCESSING_DISABLED         ( 0x1U )
+#define portINT_PROCESSING_ENABLED          ( 0x0U )
+#define portINT_PROCESSING_DISABLED         ( 0x1U )
 
 /* Specify 16 interrupt priority levels */
-    #define portINT_PRIORITY_HIGHEST            ( 0x0000U ) /* Level 0 (highest) */
-    #define portINT_PRIORITY_LEVEL1             ( 0x0001U ) /* Level 1 */
-    #define portINT_PRIORITY_LEVEL2             ( 0x0002U ) /* Level 2 */
-    #define portINT_PRIORITY_LEVEL3             ( 0x0003U ) /* Level 3 */
-    #define portINT_PRIORITY_LEVEL4             ( 0x0004U ) /* Level 4 */
-    #define portINT_PRIORITY_LEVEL5             ( 0x0005U ) /* Level 5 */
-    #define portINT_PRIORITY_LEVEL6             ( 0x0006U ) /* Level 6 */
-    #define portINT_PRIORITY_LEVEL7             ( 0x0007U ) /* Level 7 */
-    #define portINT_PRIORITY_LEVEL8             ( 0x0008U ) /* Level 8 */
-    #define portINT_PRIORITY_LEVEL9             ( 0x0009U ) /* Level 9 */
-    #define portINT_PRIORITY_LEVEL10            ( 0x000AU ) /* Level 10 */
-    #define portINT_PRIORITY_LEVEL11            ( 0x000BU ) /* Level 11 */
-    #define portINT_PRIORITY_LEVEL12            ( 0x000CU ) /* Level 12 */
-    #define portINT_PRIORITY_LEVEL13            ( 0x000DU ) /* Level 13 */
-    #define portINT_PRIORITY_LEVEL14            ( 0x000EU ) /* Level 14 */
-    #define portINT_PRIORITY_LOWEST             ( 0x000FU ) /* Level 15 (lowest) */
-
-#endif /* (configUSE_TIMERS == 1) */
+#define portINT_PRIORITY_HIGHEST            ( 0x0000U ) /* Level 0 (highest) */
+#define portINT_PRIORITY_LEVEL1             ( 0x0001U ) /* Level 1 */
+#define portINT_PRIORITY_LEVEL2             ( 0x0002U ) /* Level 2 */
+#define portINT_PRIORITY_LEVEL3             ( 0x0003U ) /* Level 3 */
+#define portINT_PRIORITY_LEVEL4             ( 0x0004U ) /* Level 4 */
+#define portINT_PRIORITY_LEVEL5             ( 0x0005U ) /* Level 5 */
+#define portINT_PRIORITY_LEVEL6             ( 0x0006U ) /* Level 6 */
+#define portINT_PRIORITY_LEVEL7             ( 0x0007U ) /* Level 7 */
+#define portINT_PRIORITY_LEVEL8             ( 0x0008U ) /* Level 8 */
+#define portINT_PRIORITY_LEVEL9             ( 0x0009U ) /* Level 9 */
+#define portINT_PRIORITY_LEVEL10            ( 0x000AU ) /* Level 10 */
+#define portINT_PRIORITY_LEVEL11            ( 0x000BU ) /* Level 11 */
+#define portINT_PRIORITY_LEVEL12            ( 0x000CU ) /* Level 12 */
+#define portINT_PRIORITY_LEVEL13            ( 0x000DU ) /* Level 13 */
+#define portINT_PRIORITY_LEVEL14            ( 0x000EU ) /* Level 14 */
+#define portINT_PRIORITY_LOWEST             ( 0x000FU ) /* Level 15 (lowest) */
 
 /* Macros indicatings status of scheduler request */
-#define PORT_SCHEDULER_NOREQUEST         0UL
-#define PORT_SCHEDULER_TASKSWITCH        1UL /* Do not modify */
-#define PORT_SCHEDULER_STARTFIRSTTASK    2UL /* Do not modify */
+#define PORT_SCHEDULER_NOREQUEST            0UL
+#define PORT_SCHEDULER_TASKSWITCH           1UL       /* Do not modify */
+#define PORT_SCHEDULER_STARTFIRSTTASK       2UL       /* Do not modify */
 
 #ifndef configSETUP_TICK_INTERRUPT
 
@@ -190,7 +187,6 @@
  * Used to catch tasks that attempt to return from their implementing function.
  */
 static void prvTaskExitError( void );
-#if ( configUSE_TIMERS == 1 )
 
 /*
  * Sets up the periodic ISR used for the RTOS tick using the OSTM.
@@ -198,8 +194,7 @@ static void prvTaskExitError( void );
  * FreeRTOSConfig.h) such that their own tick interrupt configuration is used
  * in place of prvSetupTimerInterrupt().
  */
-    static void prvSetupTimerInterrupt( void );
-#endif
+static void prvSetupTimerInterrupt( void );
 
 #if ( configNUMBER_OF_CORES > 1 )
 
@@ -208,8 +203,9 @@ static void prvTaskExitError( void );
  * Control Register (G0MEVm). There are separated access path between CPU cores,
  * but they should wait if access to same register
  */
-    static void prvExclusiveLock( void );
-    static void prvExclusiveRelease( void );
+    static void prvExclusiveLock( BaseType_t xFromIsr );
+    static void prvExclusiveRelease( BaseType_t xFromIsr );
+
 #endif
 
 /*
@@ -229,22 +225,21 @@ volatile UBaseType_t uxInterruptNesting[ configNUMBER_OF_CORES ] = { 0 };
 volatile const UBaseType_t uxPortMaxInterruptDepth = configMAX_INT_NESTING - 1;
 
 /* Count number of nested locks by same cores. The lock is completely released
- * only if this count is decreased to 0 */
-UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
+ * only if this count is decreased to 0, the lock is separated for task and isr */
+UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ][ 2 ] = { 0 };
 
 #if ( configNUMBER_OF_CORES > 1 )
-    /* Pointer to exclusive access memory */
+
+/* Pointer to exclusive access memory */
     volatile BaseType_t * pxPortExclusiveReg = ( volatile BaseType_t * ) ( portMEV_BASE_ADDR );
 #endif
 
-#if ( configUSE_TIMERS == 1 )
-
 /* Interrupt handler for OSTM timer which handling tick increment and resulting
  * to switch context. */
-    void vPortTickISR( void );
-#endif /* (configUSE_TIMERS == 1) */
+void vPortTickISR( void );
 
 #if ( configNUMBER_OF_CORES > 1 )
+
 /* Yield specific cores by send inter-processor interrupt */
     void vPortYieldCore( uint32_t xCoreID );
 
@@ -257,8 +252,8 @@ UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
  * cores. The core will wait until lock will be available, whilst the core which
  * already had lock can acquire lock without waiting. This function could be
  * call from task and interrupt context, the critical section is called as in ISR */
-    void vPortRecursiveLockAcquire( void );
-    void vPortRecursiveLockRelease( void );
+    void vPortRecursiveLockAcquire( BaseType_t xFromIsr );
+    void vPortRecursiveLockRelease( BaseType_t xFromIsr );
 
 #endif /* (configNUMBER_OF_CORES > 1) */
 
@@ -268,27 +263,31 @@ UBaseType_t uxLockNesting[ configNUMBER_OF_CORES ] = { 0 };
  * These below functions implement interrupt mask from interrupt. They are not
  * called in nesting, it is protected by FreeRTOS kernel.
  */
-BaseType_t xPortSetInterruptMask( void )
+portLONG xPortSetInterruptMask( void )
 {
+    portLONG ulPSWValue = portSTSR( portPSW_REGISTER_ID );
+
     portDISABLE_INTERRUPTS();
 
     /* It returns current value of Program Status Word register */
-    return portSTSR( portPSW_REGISTER_ID );
+    return ulPSWValue;
 }
+
 /*-----------------------------------------------------------*/
 
-void vPortClearInterruptMask( UBaseType_t uxSavedInterruptStatus )
+void vPortClearInterruptMask( portLONG uxSavedInterruptStatus )
 {
-    BaseType_t ulPSWValue = portSTSR( portPSW_REGISTER_ID );
+    portLONG ulPSWValue = portSTSR( portPSW_REGISTER_ID );
 
     /* Interrupt Disable status is indicates by bit#5 of PSW
     * (1: Interrupt is disabled; 0: Interrupt is enabled) */
-    /* Revert to the status before interrupt mask. */
-    ulPSWValue |= ( 0x020 & uxSavedInterruptStatus );
-    portLDSR( portPSW_REGISTER_ID, ulPSWValue );
 
-    portENABLE_INTERRUPTS();
+    /* Revert to the status before interrupt mask. */
+    ulPSWValue &= ( ~( portPSW_ID_MASK ) );
+    ulPSWValue |= ( portPSW_ID_MASK & uxSavedInterruptStatus );
+    portLDSR( portPSW_REGISTER_ID, ulPSWValue );
 }
+
 /*-----------------------------------------------------------*/
 
 /*
@@ -308,6 +307,7 @@ BaseType_t xPortGET_CORE_ID( void )
         return 0;
     #endif
 }
+
 /*-----------------------------------------------------------*/
 
 /*
@@ -325,8 +325,14 @@ void * pvPortGetCurrentTCB( void )
 
     return pvCurrentTCB;
 }
+
 /*-----------------------------------------------------------*/
 
+/*
+ * This function checks if a context switch is required and, if so, updates
+ * the scheduler status for the core on which the function is called. The
+ * scheduler status is set to indicate that a task switch should occur.
+ */
 void vPortSetSwitch( BaseType_t xSwitchRequired )
 {
     if( xSwitchRequired != pdFALSE )
@@ -334,6 +340,7 @@ void vPortSetSwitch( BaseType_t xSwitchRequired )
         xPortScheduleStatus[ xPortGET_CORE_ID() ] = PORT_SCHEDULER_TASKSWITCH;
     }
 }
+
 /*-----------------------------------------------------------*/
 
 /*
@@ -411,26 +418,27 @@ StackType_t * pxPortInitialiseStack( StackType_t * pxTopOfStack,
     pxTopOfStack--;
 
     /* Keep System pre-configuration (HV, CUx, EBV) as current setting in PSW register */
-    *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MSK ); /* EIPSW */
+    *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MASK ); /* EIPSW */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) pxCode;                                          /* EIPC */
+    *pxTopOfStack = ( StackType_t ) pxCode;                                           /* EIPC */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                       /* EIIC */
+    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                        /* EIIC */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MSK ); /* CTPSW */
+    *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MASK ); /* CTPSW */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                       /* CTPC */
+    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                        /* CTPC */
 
 /* __FPU is defined by CCRH compiler if FPU is enabled */
     #if ( configENABLE_FPU == 1 )
         pxTopOfStack--;
-        *pxTopOfStack = ( StackType_t ) ( portCURRENT_FPSR_VALUE & portINITIAL_FPSR_MSK ); /* FPSR */
+        *pxTopOfStack = ( StackType_t ) ( portCURRENT_FPSR_VALUE & portINITIAL_FPSR_MASK ); /* FPSR */
         pxTopOfStack--;
-        *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                         /* FPEPC */
+        *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                          /* FPEPC */
     #endif /* (configENABLE_FPU == 1) */
 
     return pxTopOfStack;
 }
+
 /*-----------------------------------------------------------*/
 
 /*
@@ -487,6 +495,7 @@ BaseType_t xPortStartScheduler( void )
 
     return pdFALSE;
 }
+
 /*-----------------------------------------------------------*/
 
 /*
@@ -500,13 +509,25 @@ static void prvTaskExitError( void )
      *
      * Artificially force an assert() to be triggered if configASSERT() is
      * defined, then stop here so application writers can catch the error. */
+
+    /* This statement will always fail, triggering the assert */
     configASSERT( pdFALSE );
+
+    /*
+     * The following statement may be unreachable because configASSERT(pdFALSE)
+     * always triggers an assertion failure, which typically halts program execution.
+     * The warning may be reported to indicate to indicate that the compiler
+     * detects the subsequent code will not be executed. The warning is acceptable
+     * to ensure program is halt regardless of configASSERT(pdFALSE) implementation
+     */
     portDISABLE_INTERRUPTS();
 
     for( ; ; )
     {
+        /* Infinite loop to ensure the function does not return. */
     }
 }
+
 /*-----------------------------------------------------------*/
 
 void vPortEndScheduler( void )
@@ -515,6 +536,7 @@ void vPortEndScheduler( void )
      * Artificially force an assert. */
     configASSERT( pdFALSE );
 }
+
 /*-----------------------------------------------------------*/
 
 #if ( configNUMBER_OF_CORES > 1 )
@@ -543,6 +565,7 @@ void vPortEndScheduler( void )
             vPortYield();
         }
     }
+
 /*-----------------------------------------------------------*/
 
 /*
@@ -559,58 +582,58 @@ void vPortEndScheduler( void )
             xPortScheduleStatus[ xCurrentCore ] = PORT_SCHEDULER_TASKSWITCH;
         }
     }
+
 /*-----------------------------------------------------------*/
 
 #endif /* (configNUMBER_OF_CORES > 1) */
 
-#if ( configUSE_TIMERS == 1 )
-    void vPortTickISR( void )
-    {
-        /* In case of multicores with SMP,  xTaskIncrementTick is required to
-         * called in critical section to avoid conflict resource as this function
-         * could be called by xTaskResumeAll() from any cores. */
-        #if ( configNUMBER_OF_CORES > 1 )
-            BaseType_t xSavedInterruptStatus;
+void vPortTickISR( void )
+{
+    /* In case of multicores with SMP,  xTaskIncrementTick is required to
+     * called in critical section to avoid conflict resource as this function
+     * could be called by xTaskResumeAll() from any cores. */
+    #if ( configNUMBER_OF_CORES > 1 )
+        BaseType_t xSavedInterruptStatus;
 
-            xSavedInterruptStatus = portENTER_CRITICAL_FROM_ISR();
-        #endif
+        xSavedInterruptStatus = portENTER_CRITICAL_FROM_ISR();
+    #endif
+    {
+        /* Increment the RTOS tick. */
+        if( xTaskIncrementTick() != pdFALSE )
         {
-            /* Increment the RTOS tick. */
-            if( xTaskIncrementTick() != pdFALSE )
-            {
-                /* Pend a context switch. */
-                xPortScheduleStatus[ xPortGET_CORE_ID() ] = PORT_SCHEDULER_TASKSWITCH;
-            }
+            /* Pend a context switch. */
+            xPortScheduleStatus[ xPortGET_CORE_ID() ] = PORT_SCHEDULER_TASKSWITCH;
         }
-        #if ( configNUMBER_OF_CORES > 1 )
-            portEXIT_CRITICAL_FROM_ISR( xSavedInterruptStatus );
-        #endif
     }
+    #if ( configNUMBER_OF_CORES > 1 )
+        portEXIT_CRITICAL_FROM_ISR( xSavedInterruptStatus );
+    #endif
+}
+
 /*-----------------------------------------------------------*/
 
-    static void prvSetupTimerInterrupt( void )
-    {
-        volatile uint32_t * pulOSTMIntReg;
+static void prvSetupTimerInterrupt( void )
+{
+    volatile uint32_t * pulOSTMIntReg;
 
-        /* Interrupt configuration for OSTM Timer
-         * By default, the second lowest priority is set for timer interrupt to
-         * avoid blocking other interrupt. Normally, user could set the lowest
-         * priority for non-critical event. It try to keep timer on time.
-         * In addition, direct vector table is used by default.
-         */
-        pulOSTMIntReg = ( volatile uint32_t * ) portOSTM_EIC_ADDR;
-        *pulOSTMIntReg = ( portINT_PROCESSING_ENABLED | portINT_DIRECT_VECTOR | portINT_PRIORITY_LEVEL14 );
+    /* Interrupt configuration for OSTM Timer
+     * By default, the second lowest priority is set for timer interrupt to
+     * avoid blocking other interrupt. Normally, user could set the lowest
+     * priority for non-critical event. It try to keep timer on time.
+     * In addition, direct vector table is used by default.
+     */
+    pulOSTMIntReg = ( volatile uint32_t * ) portOSTM_EIC_ADDR;
+    *pulOSTMIntReg = ( portINT_PROCESSING_ENABLED | portINT_DIRECT_VECTOR | portINT_PRIORITY_LEVEL14 );
 
-        /* Set OSTM0 control setting */
-        *( ( volatile uint32_t * ) portOSTM0CTL_ADDR ) = ( portOSTM_MODE_INTERVAL_TIMER | portOSTM_START_INTERRUPT_DISABLE );
-        *( ( volatile uint32_t * ) portOSTM0CMP_ADDR ) = ( configCPU_CLOCK_HZ / configTICK_RATE_HZ / 2 ) - 1;
+    /* Set OSTM0 control setting */
+    *( ( volatile uint32_t * ) portOSTM0CTL_ADDR ) = ( portOSTM_MODE_INTERVAL_TIMER | portOSTM_START_INTERRUPT_DISABLE );
+    *( ( volatile uint32_t * ) portOSTM0CMP_ADDR ) = ( configCPU_CLOCK_HZ / configTICK_RATE_HZ / 2 ) - 1;
 
-        /* Enable OSTM0 operation */
-        *( ( volatile uint32_t * ) portOSTM0TS_ADDR ) = portOSTM_COUNTER_START;
-    }
+    /* Enable OSTM0 operation */
+    *( ( volatile uint32_t * ) portOSTM0TS_ADDR ) = portOSTM_COUNTER_START;
+}
+
 /*-----------------------------------------------------------*/
-
-#endif /* (configUSE_TIMERS == 1) */
 
 #if ( configNUMBER_OF_CORES > 1 )
 
@@ -620,7 +643,7 @@ void vPortEndScheduler( void )
  * Nesting calls to these APIs are possible.
  */
     #pragma inline_asm prvExclusiveLock
-    static void prvExclusiveLock( void )
+    static void prvExclusiveLock( BaseType_t xBitPosition )
     {
         /* No problem with r19, CCRH does not required to restore same value
          * before and after function call. */
@@ -628,59 +651,70 @@ void vPortEndScheduler( void )
         ld.w    0[ r19 ], r19
 
 prvExclusiveLock_Lock:
-        set1    0, 0[ r19 ]
+
+        /* r6 is xBitPosition */
+        set1 r6, [ r19 ]
         bz prvExclusiveLock_Lock_success
         snooze
         br prvExclusiveLock_Lock
 
 prvExclusiveLock_Lock_success:
     }
+
 /*-----------------------------------------------------------*/
 
     #pragma inline_asm prvExclusiveRelease
-    static void prvExclusiveRelease( void )
+    static void prvExclusiveRelease( BaseType_t xBitPosition )
     {
         mov     # _pxPortExclusiveReg, r19
         ld.w    0[ r19 ], r19
-        clr1    0, 0[ r19 ]
-    }
-/*-----------------------------------------------------------*/
 
-    void vPortRecursiveLockAcquire( void )
+        /* r6 is xBitPosition */
+        clr1 r6, [ r19 ]
+    }
+
+/*-----------------------------------------------------------*/
+    void vPortRecursiveLockAcquire( BaseType_t xFromIsr )
     {
         BaseType_t xSavedInterruptStatus;
         BaseType_t xCoreID = xPortGET_CORE_ID();
+        BaseType_t xBitPosition = ( xFromIsr == pdTRUE );
 
         xSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
 
-        if( uxLockNesting[ xCoreID ] == 0 )
+        if( uxLockNesting[ xCoreID ][ xBitPosition ] == 0 )
         {
-            prvExclusiveLock();
+            prvExclusiveLock( xBitPosition );
         }
 
-        uxLockNesting[ xCoreID ]++;
+        uxLockNesting[ xCoreID ][ xBitPosition ]++;
         portCLEAR_INTERRUPT_MASK_FROM_ISR( xSavedInterruptStatus );
     }
 
-    void vPortRecursiveLockRelease( void )
+    void vPortRecursiveLockRelease( BaseType_t xFromIsr )
     {
         BaseType_t xSavedInterruptStatus;
         BaseType_t xCoreID = xPortGET_CORE_ID();
+        BaseType_t xBitPosition = ( xFromIsr == pdTRUE );
 
         xSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
+
+        /* Sync memory */
+        __syncm();
 
         /* Error check whether vPortRecursiveLockRelease() is not called in
          * pair with vPortRecursiveLockAcquire() */
-        configASSERT( ( uxLockNesting[ xCoreID ] > 0 ) );
-        uxLockNesting[ xCoreID ]--;
+        configASSERT( ( uxLockNesting[ xCoreID ][ xBitPosition ] > 0 ) );
+        uxLockNesting[ xCoreID ][ xBitPosition ]--;
 
-        if( uxLockNesting[ xCoreID ] == 0 )
+        if( uxLockNesting[ xCoreID ][ xBitPosition ] == 0 )
         {
-            prvExclusiveRelease();
+            prvExclusiveRelease( xBitPosition );
         }
 
         portCLEAR_INTERRUPT_MASK_FROM_ISR( xSavedInterruptStatus );
     }
+
 /*-----------------------------------------------------------*/
 
 #endif /* (configNUMBER_OF_CORES > 1) */

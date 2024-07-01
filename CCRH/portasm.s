@@ -1,5 +1,5 @@
 ;/*
-; * FreeRTOS Kernel V11.0.1
+; * FreeRTOS Kernel V11.1.0
 ; * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 ; *
 ; * SPDX-License-Identifier: MIT
@@ -34,7 +34,7 @@
 .extern _xPortScheduleStatus
 .extern _vTaskSwitchContext
 .extern _pvPortGetCurrentTCB
-.extern _common_interrupt_handler
+.extern _vCommonISRHandler
 .extern _xPortGET_CORE_ID
 
 .public _vIrq_Handler
@@ -209,15 +209,16 @@ _vTRAP0_Handler:
     ; Context switch should be executed at the most outer of interrupt tree.
     ; In that case, set xPortScheduleStatus to flag context switch in interrupt handler.
     jarl    _xPortGET_CORE_ID, lp ; return value is contained in r10 (CCRH compiler)
-    shl     2, r10
+    mov     r10, r11
+    shl     2, r11
     mov     #_uxInterruptNesting, r19
-    add     r10, r19
+    add     r11, r19
     ld.w    0[r19], r18
     cmp     r0, r18
     be      _vTRAP0_Handler_ContextSwitch
 
     mov     #_xPortScheduleStatus, r19
-    add     r10, r19
+    add     r11, r19
 
     ; Set xPortScheduleStatus[coreID]=PORT_SCHEDULER_TASKSWITCH
     mov     1, r17
@@ -271,7 +272,7 @@ _vIrq_Handler:
     cmp     r16, r15
     be      4                                 ; Jump over ei instruction
     ei
-    jarl    _common_interrupt_handler, lp
+    jarl    _vCommonISRHandler, lp
     di
     synce
 

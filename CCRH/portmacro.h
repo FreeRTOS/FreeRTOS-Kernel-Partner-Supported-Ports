@@ -1,5 +1,5 @@
 /*
- * FreeRTOS Kernel V11.0.1
+ * FreeRTOS Kernel V11.1.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -111,6 +111,7 @@
 
 /* Called at the end of an ISR that can cause a context switch */
     extern void vPortSetSwitch( BaseType_t vPortSetSwitch );
+
     #define portEND_SWITCHING_ISR( xSwitchRequired )    vPortSetSwitch( vPortSetSwitch )
 
     #define portYIELD_FROM_ISR( x )                     portEND_SWITCHING_ISR( x )
@@ -136,19 +137,20 @@
         #define portEXIT_CRITICAL_FROM_ISR( x )    vTaskExitCriticalFromISR( x )
 
     #endif /* if ( configNUMBER_OF_CORES > 1 ) */
+
     #if ( configNUMBER_OF_CORES == 1 )
         #define portGET_ISR_LOCK()
         #define portRELEASE_ISR_LOCK()
         #define portGET_TASK_LOCK()
         #define portRELEASE_TASK_LOCK()
     #else
-        extern void vPortRecursiveLockAcquire( void );
-        extern void vPortRecursiveLockRelease( void );
+        extern void vPortRecursiveLockAcquire( BaseType_t xFromIsr );
+        extern void vPortRecursiveLockRelease( BaseType_t xFromIsr );
 
-        #define portGET_ISR_LOCK()         vPortRecursiveLockAcquire()
-        #define portRELEASE_ISR_LOCK()     vPortRecursiveLockRelease()
-        #define portGET_TASK_LOCK()        vPortRecursiveLockAcquire()
-        #define portRELEASE_TASK_LOCK()    vPortRecursiveLockRelease()
+        #define portGET_ISR_LOCK()         vPortRecursiveLockAcquire( pdTRUE )
+        #define portRELEASE_ISR_LOCK()     vPortRecursiveLockRelease( pdTRUE )
+        #define portGET_TASK_LOCK()        vPortRecursiveLockAcquire( pdFALSE )
+        #define portRELEASE_TASK_LOCK()    vPortRecursiveLockRelease( pdFALSE )
     #endif /* if ( configNUMBER_OF_CORES == 1 ) */
 
 /*-----------------------------------------------------------*/
@@ -167,8 +169,8 @@
 
 /*-----------------------------------------------------------*/
 /* Macros to set and clear the interrupt mask. */
-    BaseType_t xPortSetInterruptMask();
-    void vPortClearInterruptMask( UBaseType_t );
+    portLONG xPortSetInterruptMask();
+    void vPortClearInterruptMask( portLONG );
 
     #define portSET_INTERRUPT_MASK()                  xPortSetInterruptMask()
     #define portCLEAR_INTERRUPT_MASK( x )             vPortClearInterruptMask( ( x ) )
