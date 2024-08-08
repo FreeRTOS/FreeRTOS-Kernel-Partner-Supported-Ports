@@ -44,6 +44,7 @@ processor configuration options:
 - Timer interrupt option with at least one timer.
 - Interrupt option (implied by the timer interrupt option).
 - Exception Architecture Version 2 (XEA2) or Version 3 (XEA3).
+- Little-endian byte ordering (XEA2 cores).
 
 Minimal support for certain evaluation boards is provided via a board
 independent XTBSP API implemented by a board specific library distributed

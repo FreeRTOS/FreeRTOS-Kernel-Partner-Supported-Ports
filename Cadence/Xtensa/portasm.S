@@ -638,6 +638,36 @@ _xt_task_start:
     rfe                                     /* PS.EXCM is cleared               */
 #endif
 
+#if XCHAL_HAVE_XEA3
+/*
+--------------------------------------------------------------------------------
+  XEA3 User-mode task entry wrapper.  Same as _xt_task_start but sets PS_RING
+  bit after privileged init is complete.
+--------------------------------------------------------------------------------
+*/
+
+    .global     _xt_task_start_user
+    .type       _xt_task_start_user,@function
+    .align      4
+
+_xt_task_start_user:
+#if XCHAL_CP_NUM > 0
+    movi    a0, 0
+    wsr     a0, CPENABLE                    /* disable all coprocessors */
+#endif
+
+    /* On entry, a8 = task entry point, a9 = top of stack / coproc save area */
+    movi    a0, pxCurrentTCB
+    l32i    a0, a0, 0
+    s32i    a9, a0, TCB_END_OF_STACK_OFF    /* TCB->pxEndOfStack = CP save area */
+    rsr     a0, PS
+    movi    a3, (1 << PS_RING_SHIFT)
+    or      a0, a0, a3
+    wsr     a0, PS
+    movi    a0, 0                           /* terminate call stack for gdb     */
+    jx      a8
+#endif
+
 /*
 **********************************************************************************************************
 *                                        _xt_task_coproc_state

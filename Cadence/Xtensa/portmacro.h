@@ -143,7 +143,11 @@ extern void vPortExitCritical(void);
         __asm volatile ("syscall\n" \
                         : "+a"(code) :: "memory"); \
     } while (0)
+#if XCHAL_HAVE_XEA2
 #define portRESET_PRIVILEGE() (XT_WSR_PS(XT_RSR_PS() | PS_RING(1)))
+#else
+#define portRESET_PRIVILEGE() (XT_WSR_PS(XT_RSR_PS() | PS_RING))
+#endif
 
 #else
 
@@ -261,9 +265,6 @@ extern void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime );
 
 #define portLEGACY_TASK_STACK_START     (((uint32_t)_bss_start) & -XCHAL_MPU_ALIGN)
 #define portLEGACY_TASK_STACK_END       (((uint32_t)_bss_end + XCHAL_MPU_ALIGN - 1) & -XCHAL_MPU_ALIGN)
-
-#define SYSCALL_raise_priv  10
-#define SYSCALL_is_priv     12
 
 #ifndef __ASSEMBLER__
 

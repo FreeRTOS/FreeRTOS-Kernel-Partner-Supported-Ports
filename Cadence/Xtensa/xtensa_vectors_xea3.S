@@ -263,16 +263,44 @@ _xt_entry:
         //   a15 holds exception SP, a1 points to exception frame
         // For windowed:
         //    a3 holds ExcCause, also saved in [oldsp - 72]
+        //    a2 holds a2 from user code (possible syscall arg)
         //    a1 points to exception frame
 
         .global _xt_exception
 
 _xt_exception:
-        l32r     a2,  .Le1                  // Load exc table address
 #ifdef __XTENSA_CALL0_ABI__
-        mov      a3, a11                    // Copy exception cause to a3
+        mov      a3,  a11                   // Copy exception cause to a3
 #endif
         extui    a4,  a3, 0, 4              // Extract exception cause
+#if portUSING_MPU_WRAPPERS
+        // Handle "RAISE PRIVILEGE" SYSCALL in assembly;
+        // others use registered syscall handler
+        bnei     a4,  EXCCAUSE_SYSCALL, .L_xt_proc_full_exc
+#ifdef __XTENSA_CALL0_ABI__
+        l32i     a2,  a1, 16 + XT_STK_A2    // Exception frame is SP + 16
+#else
+        // Transition MS.DispSt to tail-chain-no-interrupt, which
+        // (a) disables interrupts and (b) allows privilege_return to
+        // skip tailchain handling and MPU restore, improving performance.
+        // NOTE: windowed code only; TODO: wsr.ms is a nop for call0
+        rsr.ms   a4
+        addi     a2,  a4, 0x6               // DispSt was 0 before
+        wsr.ms   a2
+        // Extract syscall ID which is in caller's A2
+        rotw     -1                         // Interrupts are disabled here
+        mov      a10, a2                    // Copy into exception handler's A2
+        rotw     1
+#endif
+        beqi     a2,  SYSCALL_raise_priv, do_raise_priv
+        beqi     a2,  SYSCALL_is_priv, do_is_priv
+#if !(defined __XTENSA_CALL0_ABI__)
+        wsr.ms   a4                         // Restore interrupts, MS.DispSt,
+        extui    a4,  a3, 0, 4              // ...and a4 for fall-through case
+#endif
+.L_xt_proc_full_exc:
+#endif  /* portUSING_MPU_WRAPPERS */
+        l32r     a2,  .Le1                  // Load exc table address
         addx4    a2,  a4, a2                // Index into exc table
         l32i     a4,  a2, 0                 // Load handler address
 #if XT_STK_XTRA_SZ
@@ -282,11 +310,54 @@ _xt_exception:
 #endif
         jx       a4                         // Return directly from handler
 
+#if portUSING_MPU_WRAPPERS
+        .align      4
+do_is_priv:
+        l32i    a2,  a1, 16 + XT_STK_PS     // Exception frame is SP + 16
+        movi    a4,  1
+        extui   a2,  a2, PS_RING_SHIFT, 1
+        xor     a2,  a2, a4
+        j       privilege_return
+
+        // raise privilege syscall
+do_raise_priv:
+        l32i    a4,  a1, 16 + XT_STK_PS     // Exception frame is SP + 16
+        bbsi    a4,  PS_RING_SHIFT, raise_privilege
+        movi    a2,  1
+privilege_return:
+        l32i    a4,  a1, 16 + XT_STK_PC     // Exception frame is SP + 16
+        addi    a4,  a4, 3                  // ++PC (3-byte syscall instruction)
+        s32i    a4,  a1, 16 + XT_STK_PC
+#ifdef __XTENSA_CALL0_ABI__
+        s32i    a2,  a1, 16 + XT_STK_A2     // Exception frame is SP + 16
+        ret.n                               // Emulate end of handler
+#else
+        movi    a0,  _xt_exit_post_mpu      // Skip tail-chain and MPU update
+        rotw    -1                          // Interrupts still disabled by MS.DispSt
+        mov     a2,  a10                    // Exception handler's A2 <- retval
+        rotw    1
+        retw.n                              // Emulate end of handler
+#endif
+
+raise_privilege:
+        movi    a2,  ~PS_RING_MASK          // PS.RING = 0
+        and     a4,  a4, a2
+        s32i    a4,  a1, 16 + XT_STK_PS     // Exception frame is SP + 16
+        movi    a2,  0
+        j       privilege_return
+#endif  /* portUSING_MPU_WRAPPERS */
+
         // Exit/restore sequence
 
         .global _xt_exit
 
 _xt_exit:
+#if portUSING_MPU_WRAPPERS
+        mov      a8, a0
+        call0    _xt_mpu_restore
+        mov      a0, a8
+_xt_exit_post_mpu:
+#endif
 #ifdef __XTENSA_CALL0_ABI__
         mov      a1, a15                    // Restore stack pointer
 #endif

@@ -77,6 +77,9 @@ extern void _xt_coproc_exc(XtExcFrame * fp);
 
 // Defined in xtensa_vectors.S.
 extern void _xt_task_start( void );
+#if XCHAL_HAVE_XEA3 && portUSING_MPU_WRAPPERS
+extern void _xt_task_start_user( void );
+#endif
 
 // Timer tick interval in cycles.
 static uint32_t xt_tick_cycles;
@@ -140,10 +143,10 @@ static void xt_tick_handler( void )
 
         portYIELD_FROM_ISR( ret );
 
-		// Signed comparison gracefully handles cases where another source
-		// has called xt_update_clock_frequency(), e.g. for tickless idle
-		// or variable frequency support, and ccompare was advanced 
-		// farther than expected.
+        // Signed comparison gracefully handles cases where another source
+        // has called xt_update_clock_frequency(), e.g. for tickless idle
+        // or variable frequency support, and ccompare was advanced 
+        // farther than expected.
         diff = (int32_t)(xt_get_ccount() - ulOldCCompare);
     }
     while ( diff > (int32_t)xt_tick_cycles );
@@ -340,12 +343,23 @@ StackType_t *pxPortInitialiseStack( StackType_t * pxTopOfStack,
     frame->a6 = (long) pvParameters;
     frame->ps = PS_UM | PS_EXCM | PS_WOE | PS_CALLINC(1);
     #endif
+    #if portUSING_MPU_WRAPPERS
+    if(!xRunPrivileged) {
+       frame->ps |= (1 << PS_RING_SHIFT);
+    }
+    #endif
     #endif
 
     #if XCHAL_HAVE_XEA3
     frame->a8 = (long) pxCode;              // task entrypoint
     frame->a9 = (long) sp;                  // top of stack - CP save area
+    #if portUSING_MPU_WRAPPERS
+    frame->pc = (!xRunPrivileged) ?
+       (long) _xt_task_start_user :         // PS_RING will be set later
+       (long) _xt_task_start;               // standard task start wrapper
+    #else
     frame->pc = (long) _xt_task_start;      // task start wrapper
+    #endif
     frame->ps = PS_STACK_FIRSTKER;          // initial PS
     frame->atomctl = 0;                     // initial value
     // Set entry point arg.
@@ -354,12 +368,6 @@ StackType_t *pxPortInitialiseStack( StackType_t * pxTopOfStack,
     #else
     frame->a10 = (long) pvParameters;
     #endif
-    #endif
-
-    #if portUSING_MPU_WRAPPERS
-    if(!xRunPrivileged) {
-       frame->ps |= (1 << PS_RING_SHIFT);
-    }
     #endif
 
     #ifdef XT_USE_SWPRI
@@ -389,10 +397,10 @@ void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
     // Lock out all interrupts. Otherwise reading and using ccount can
     // get messy. Shouldn't be a problem here since we are about to go
     // to sleep, and the waiti will re-enable interrupts shortly.
-	
-	// Must call vTaskEnterCritical() in order to increment FreeRTOS 
-	// nesting count, otheriwse the call to vTaskStepTick() inside this
-	// critical section will inadvertently reenable interrupts.
+    
+    // Must call vTaskEnterCritical() in order to increment FreeRTOS 
+    // nesting count, otheriwse the call to vTaskStepTick() inside this
+    // critical section will inadvertently reenable interrupts.
     portENTER_CRITICAL();
 
     eSleepStatus = eTaskConfirmSleepModeStatus();
@@ -432,11 +440,11 @@ void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
         xt_interrupt_clear( XT_TIMER_INTNUM );
 #endif
         // Ensure any clearing of pending interrupt takes effect.
-		// WAITI instruction will reduce interrupt level and sleep so
-		// it must be followed by raising the interrupt level to ensure
-		// the critical section is maintained.  The NESTED version is 
-		// used here since it does not increment the nesting count that 
-		// is managed upon entry and exit of this function.
+        // WAITI instruction will reduce interrupt level and sleep so
+        // it must be followed by raising the interrupt level to ensure
+        // the critical section is maintained.  The NESTED version is 
+        // used here since it does not increment the nesting count that 
+        // is managed upon entry and exit of this function.
         XT_ISYNC();
         XT_WAITI( 0 );
         portENTER_CRITICAL_NESTED();

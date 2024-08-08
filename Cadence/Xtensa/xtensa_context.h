@@ -58,6 +58,11 @@
 #endif
 
 
+/* SYSCALL definitions for privilige support */
+#define SYSCALL_raise_priv  10
+#define SYSCALL_is_priv     12
+
+
 /*
 -------------------------------------------------------------------------------
   Macros that help define structures for both C and assembler.
