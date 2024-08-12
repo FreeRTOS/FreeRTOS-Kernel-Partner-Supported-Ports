@@ -72,6 +72,12 @@
 #error Xtensa HW earlier than RH_2016.2 not supported.
 #endif
 
+#if XT_STK_XTRA_SZ
+#define EXCFRAME_XTRA_OFF(field)        (XT_STK_XTRA_SZ + (field))
+#else
+#define EXCFRAME_XTRA_OFF(field)        (field)
+#endif
+
 
 //-----------------------------------------------------------------------------
 // The entry point vectors are common for call0 and windowed configurations.
@@ -207,6 +213,9 @@ _xt_entry:
         getex   a12
         s32e    a12,  a1, -32           // [a1-96] <- a12 (ATOMCTL)
 #endif
+#if (defined __XTENSA_WINDOWED_ABI__) && portUSING_MPU_WRAPPERS
+        s32e     a2,  a1, -36           // [a1-100] <- a2 (syscall arg)
+#endif
 
         j       1f                      // make room for literals
 
@@ -247,9 +256,16 @@ _xt_entry:
         s32si.x4        a10,  a1        // [a1-80] <- a10 (EPC) ; a10 <- (intnum << 2)
         movi             a8,   0
         l32dis.it        a8,  a8        // a8 <- wrapper addr (handler_table[0])
+
+        // Exception frame size is 96 bytes for Windowed,
+        // plus an extra 4 bytes if MPU wrappers are used (for XT_STK_A2)
         s32stk           a9,  a1, 96    // [a1-76] <- a9 (PS/SAR) ; a9 = a1-96
-#if XT_STK_XTRA_SZ
+#if portUSING_MPU_WRAPPERS && XT_STK_XTRA_SZ
+        addi             a9,  a9, -XT_STK_XTRA_SZ-4     // Adjust for extra save area + XT_STK_A2
+#elif XT_STK_XTRA_SZ
         addi             a9,  a9, -XT_STK_XTRA_SZ       // Adjust for extra save area
+#elif portUSING_MPU_WRAPPERS  
+        addi             a9,  a9, -4    // Adjust for XT_STK_A2
 #endif
         s32dis.h         a8,  a8        // Jump to handler if interrupt else fall through
 
@@ -263,8 +279,8 @@ _xt_entry:
         //   a15 holds exception SP, a1 points to exception frame
         // For windowed:
         //    a3 holds ExcCause, also saved in [oldsp - 72]
-        //    a2 holds a2 from user code (possible syscall arg)
-        //    a1 points to exception frame
+        //    a1 holds new SP
+        //    New SP + XT_STK_XTRA_SZ points to exception frame
 
         .global _xt_exception
 
@@ -277,27 +293,10 @@ _xt_exception:
         // Handle "RAISE PRIVILEGE" SYSCALL in assembly;
         // others use registered syscall handler
         bnei     a4,  EXCCAUSE_SYSCALL, .L_xt_proc_full_exc
-#ifdef __XTENSA_CALL0_ABI__
-        l32i     a2,  a1, 16 + XT_STK_A2    // Exception frame is SP + 16
-#else
-        // Transition MS.DispSt to tail-chain-no-interrupt, which
-        // (a) disables interrupts and (b) allows privilege_return to
-        // skip tailchain handling and MPU restore, improving performance.
-        // NOTE: windowed code only; TODO: wsr.ms is a nop for call0
-        rsr.ms   a4
-        addi     a2,  a4, 0x6               // DispSt was 0 before
-        wsr.ms   a2
-        // Extract syscall ID which is in caller's A2
-        rotw     -1                         // Interrupts are disabled here
-        mov      a10, a2                    // Copy into exception handler's A2
-        rotw     1
-#endif
+        l32i     a2,  a1, EXCFRAME_XTRA_OFF(XT_STK_A2)  // ExcFrame + A2 offset
         beqi     a2,  SYSCALL_raise_priv, do_raise_priv
         beqi     a2,  SYSCALL_is_priv, do_is_priv
-#if !(defined __XTENSA_CALL0_ABI__)
-        wsr.ms   a4                         // Restore interrupts, MS.DispSt,
-        extui    a4,  a3, 0, 4              // ...and a4 for fall-through case
-#endif
+
 .L_xt_proc_full_exc:
 #endif  /* portUSING_MPU_WRAPPERS */
         l32r     a2,  .Le1                  // Load exc table address
@@ -313,7 +312,7 @@ _xt_exception:
 #if portUSING_MPU_WRAPPERS
         .align      4
 do_is_priv:
-        l32i    a2,  a1, 16 + XT_STK_PS     // Exception frame is SP + 16
+        l32i    a2,  a1, EXCFRAME_XTRA_OFF(XT_STK_PS)  // ExcFrame + PS offset
         movi    a4,  1
         extui   a2,  a2, PS_RING_SHIFT, 1
         xor     a2,  a2, a4
@@ -321,28 +320,23 @@ do_is_priv:
 
         // raise privilege syscall
 do_raise_priv:
-        l32i    a4,  a1, 16 + XT_STK_PS     // Exception frame is SP + 16
+        l32i    a4,  a1, EXCFRAME_XTRA_OFF(XT_STK_PS)  // ExcFrame + PS offset
         bbsi    a4,  PS_RING_SHIFT, raise_privilege
         movi    a2,  1
 privilege_return:
-        l32i    a4,  a1, 16 + XT_STK_PC     // Exception frame is SP + 16
+        l32i    a4,  a1, EXCFRAME_XTRA_OFF(XT_STK_PC)  // ExcFrame + PC offset
         addi    a4,  a4, 3                  // ++PC (3-byte syscall instruction)
-        s32i    a4,  a1, 16 + XT_STK_PC
+        s32i    a4,  a1, EXCFRAME_XTRA_OFF(XT_STK_PC)  // ExcFrame + PC offset
+        s32i    a2,  a1, EXCFRAME_XTRA_OFF(XT_STK_A2)  // Syscall return value
 #ifdef __XTENSA_CALL0_ABI__
-        s32i    a2,  a1, 16 + XT_STK_A2     // Exception frame is SP + 16
         ret.n                               // Emulate end of handler
 #else
-        movi    a0,  _xt_exit_post_mpu      // Skip tail-chain and MPU update
-        rotw    -1                          // Interrupts still disabled by MS.DispSt
-        mov     a2,  a10                    // Exception handler's A2 <- retval
-        rotw    1
         retw.n                              // Emulate end of handler
 #endif
-
 raise_privilege:
         movi    a2,  ~PS_RING_MASK          // PS.RING = 0
         and     a4,  a4, a2
-        s32i    a4,  a1, 16 + XT_STK_PS     // Exception frame is SP + 16
+        s32i    a4,  a1, EXCFRAME_XTRA_OFF(XT_STK_PS)  // ExcFrame + PS offset
         movi    a2,  0
         j       privilege_return
 #endif  /* portUSING_MPU_WRAPPERS */
@@ -356,7 +350,6 @@ _xt_exit:
         mov      a8, a0
         call0    _xt_mpu_restore
         mov      a0, a8
-_xt_exit_post_mpu:
 #endif
 #ifdef __XTENSA_CALL0_ABI__
         mov      a1, a15                    // Restore stack pointer
@@ -375,6 +368,9 @@ _xt_restore:
         // Some loads must happen before DISPST = Restore, as these
         // will not be accessible via L32E once DISPST = Restore.
 
+#if !(defined __XTENSA_CALL0_ABI__) && portUSING_MPU_WRAPPERS
+        l32e     a2,  a1, -36           // a2 <- [a1-100] (syscall return)
+#endif
 #if XCHAL_HAVE_EXCLUSIVE
         l32e    a12,  a1, -32           // a12 <- [a1-96] (ATOMCTL)
         getex   a12

@@ -159,6 +159,10 @@ XSTRUCT_END(XtExcFrame)
 #if XCHAL_HAVE_XEA3
 
 XSTRUCT_BEGIN
+#if defined(__XTENSA_WINDOWED_ABI__) && portUSING_MPU_WRAPPERS
+/* Temporary space for syscall argument/return value */
+XSTRUCT_FIELD (long, 4, XT_STK_A2,       a2)
+#endif
 XSTRUCT_FIELD (long, 4, XT_STK_ATOMCTL,  atomctl)
 XSTRUCT_FIELD (long, 4, XT_STK_LCOUNT,   lcount)
 XSTRUCT_FIELD (long, 4, XT_STK_LEND,     lend)
