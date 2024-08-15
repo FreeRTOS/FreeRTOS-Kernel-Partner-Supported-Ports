@@ -38,6 +38,10 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 
+#ifdef __XTENSA_CALL0_ABI__
+#error "Windowed ABI is required for overlays"
+#endif
+
 #if configUSE_MUTEXES
 
 /* Mutex object that controls access to the overlay. Currently only one

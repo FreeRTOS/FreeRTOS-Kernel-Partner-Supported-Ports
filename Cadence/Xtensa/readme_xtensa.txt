@@ -236,6 +236,7 @@ this is handled by the makefile if you do the following:
 > xt-make overlay
 
 Note that the overlay example generates its own LSP from the 'sim' LSP.
+Overlay support works only with the windowed ABI option.
 
 
 IMPORTANT NOTE
