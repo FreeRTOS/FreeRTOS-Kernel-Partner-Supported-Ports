@@ -40,6 +40,8 @@
 
 #ifdef __XTENSA_CALL0_ABI__
 #error "Windowed ABI is required for overlays"
+#elif !XCHAL_HAVE_XEA2
+#error "Overlays supported only on Xtensa LX"
 #endif
 
 #if configUSE_MUTEXES
