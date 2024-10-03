@@ -60,18 +60,25 @@ and drivers for any on-board devices you want to use.
 Installation
 ------------
 
-The Xtensa port of FreeRTOS is available at this location:
+The Xtensa port of FreeRTOS v11 is available at this location:
 
-    https://github.com/foss-xtensa/amazon-freertos
+    https://github.com/foss-xtensa/FreeRTOS-Kernel-Partner-Supported-Ports
+
+and is submoduled into the following FreeRTOS repos:
+
+    https://github.com/foss-xtensa/FreeRTOS-Kernel
+	https://github.com/foss-xtensa/FreeRTOS
 
 This download includes the core FreeRTOS source and include files needed
 to build the port. You can also download the official releases of FreeRTOS
-kernel from this location:
+kernel from:
 
     https://github.com/FreeRTOS/FreeRTOS-Kernel
+    https://www.freertos.org/
 
-The Xtensa port files are included in the official package but may not be
-the latest versions available.
+The Xtensa port files are included in the official package under the 
+"Partner-Supported-Ports" and "Partner-Supported-Demos" submodules, but 
+may not be the latest versions available.
 
 All source is provided along with a Makefile that works for any host
 platform supported by Xtensa Tools (Windows, Linux). These instructions
@@ -83,13 +90,12 @@ The structure of that package will look like this:
 
 <install directory>
 |-- Demo/ThirdParty/Partner-Supported-Demos/ (submodule)
-|   `-- Cadence/Xtensa/
-|       `-- sim
-|           |-- common
-|           |   |-- application_code
-|           |   |   `-- cadence_code
-|           |   `-- config_files
-|           `-- xplorer
+|   `-- Cadence_Xtensa_ISS_xt-clang/
+|       |-- common
+|       |   |-- application_code
+|       |   |   `-- cadence_code
+|       |   `-- config_files
+|       `-- stress
 `-- Source/ (submodule)
     `-- portable/ThirdParty/Partner-Supported-Ports/ (submodule)
         `-- Cadence
@@ -104,10 +110,10 @@ Building FreeRTOS for Xtensa
 ----------------------------
 
 To build the FreeRTOS library and the example programs, go into the
-directory 'Demo/.../Cadence/Xtensa/sim' and use the makefile in that directory.
-"make all" will build all the examples. There is another makefile in
-the 'portable/.../Cadence/Xtensa' directory that builds just the
-FreeRTOS library.
+directory 'Demo/.../Cadence_Xtensa_ISS_xt-clang' and use the makefile 
+in that directory. "make all" will build all the examples. There is 
+another makefile in the 'portable/.../Cadence/Xtensa' directory that 
+builds just the FreeRTOS library.
 
 By default, you will build for the Xtensa instruction set simulator. If
 you have a supported emulation board, you can build to run on that. You
@@ -177,7 +183,7 @@ Xtensa processor configuration.
 
 To build the examples for the default platform (simulator):
 
-> cd Demo/ThirdParty/Partner-Supported-Demos/Cadence/Xtensa/sim
+> cd Demo/ThirdParty/Partner-Supported-Demos/Cadence_Xtensa_ISS_xt-clang
 
 > xt-make all
 
@@ -227,6 +233,13 @@ define this to 1 if either newlib or xclib is detected.
 
 The space for the per-thread C library context data is allocated within
 the FreeRTOS TCB structure.
+
+The MPU example must be built separately since it requires the FreeRTOS 
+library to be rebuilt with -DportUSING_MPU_WRAPPERS=1 -DportALIGN_SECTIONS
+which is handled by the makefile if you do the following:
+
+> xt-make clean
+> xt-make MPU=1
 
 The code overlay example must be built separately since it requires the
 FreeRTOS library to be rebuilt. XT_USE_OVLY must be defined at build time,

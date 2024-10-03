@@ -31,9 +31,10 @@ OVLYFLAGS   = -DXT_USE_THREAD_SAFE_CLIB=1 -DXT_USE_OVLY=1
 endif
 
 SRCROOT     = $(subst /,$(S),$(CURDIR))
-TSTROOT     = $(subst /,$(S),$(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)..$(S)..$(S)..$(S)Demo$(S)ThirdParty$(S)Partner-Supported-Demos$(S)Cadence$(S)Xtensa$(S)sim$(SMALL)))
+TSTROOT     = $(subst /,$(S),$(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)..$(S)..$(S)..$(S)Demo$(S)ThirdParty$(S)Partner-Supported-Demos$(S)Cadence_Xtensa_ISS_xt-clang$(SMALL)))
 BLDROOT     = $(TSTROOT)$(S)build
-BLDDIR      = $(BLDROOT)$(S)$(XT_CORE)
+BLDAUX     ?= 
+BLDDIR      = $(BLDROOT)$(S)$(XT_CORE)$(BLDAUX)
 
 FR_SRCDIR   = $(abspath $(SRCROOT)$(S)..$(S)..$(S)..$(S)..$(S)..)
 FR_SRCDIR2  = $(FR_SRCDIR)$(S)portable$(S)MemMang
