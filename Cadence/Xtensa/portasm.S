@@ -42,13 +42,6 @@
 */
     .data
     .align      16
-#if 0
-    .global     port_IntStack
-port_IntStack:
-    .space      configISR_STACK_SIZE
-port_IntStackTop:
-    .word       0
-#endif
     .global     port_switch_flag
 port_switch_flag:
     .word       0
