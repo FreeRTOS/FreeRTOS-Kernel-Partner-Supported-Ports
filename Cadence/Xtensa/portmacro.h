@@ -208,6 +208,7 @@ BaseType_t xPortRaisePrivilege( void );
 #define portBYTE_ALIGNMENT			16
 #endif
 #define portNOP()					XT_NOP()
+#define portMEMORY_BARRIER()        XT_MEMW()
 /*-----------------------------------------------------------*/
 
 /* Fine resolution time */
