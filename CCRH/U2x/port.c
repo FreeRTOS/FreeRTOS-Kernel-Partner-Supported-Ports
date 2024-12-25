@@ -220,12 +220,12 @@ void vPortTickISR( void );
     void vPortIPIHander( void );
     void vPortIPIRClearRequest( void );
 
-/* These below funtions implement recursive spinlock for exclusive access among
+/* These below functions implement recursive spinlock for exclusive access among
  * cores. The core will wait until lock will be available, whilst the core which
  * already had lock can acquire lock without waiting. This function could be
  * call from task and interrupt context, the critical section is called as in ISR */
-    void vPortRecursiveLockAcquire( BaseType_t xFromIsr );
-    void vPortRecursiveLockRelease( BaseType_t xFromIsr );
+    void vPortRecursiveLockAcquire( BaseType_t xCoreID, BaseType_t xFromIsr );
+    void vPortRecursiveLockRelease( BaseType_t xCoreID, BaseType_t xFromIsr );
 
 #endif /* (configNUMBER_OF_CORES > 1) */
 
@@ -669,10 +669,9 @@ Lock_success:
     }
 
 /*-----------------------------------------------------------*/
-    void vPortRecursiveLockAcquire( BaseType_t xFromIsr )
+    void vPortRecursiveLockAcquire( BaseType_t xCoreID, BaseType_t xFromIsr )
     {
         BaseType_t xSavedInterruptStatus;
-        BaseType_t xCoreID = xPortGET_CORE_ID();
         BaseType_t xBitPosition = ( xFromIsr == pdTRUE );
 
         xSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
@@ -686,10 +685,9 @@ Lock_success:
         portCLEAR_INTERRUPT_MASK_FROM_ISR( xSavedInterruptStatus );
     }
 
-    void vPortRecursiveLockRelease( BaseType_t xFromIsr )
+    void vPortRecursiveLockRelease( BaseType_t xCoreID, BaseType_t xFromIsr )
     {
         BaseType_t xSavedInterruptStatus;
-        BaseType_t xCoreID = xPortGET_CORE_ID();
         BaseType_t xBitPosition = ( xFromIsr == pdTRUE );
 
         xSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
