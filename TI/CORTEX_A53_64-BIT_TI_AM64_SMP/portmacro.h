@@ -187,11 +187,11 @@ void vPortTaskUsesFPU( void );
 #define portRTOS_LOCK_COUNT 2
 #define portMAX_CORE_COUNT 2
 
-#define portRELEASE_ISR_LOCK( xCoreID ) vPortRecursiveLock( xCoreID, ISR_LOCK, pdFALSE )
-#define portGET_ISR_LOCK( xCoreID )     vPortRecursiveLock( xCoreID, ISR_LOCK, pdTRUE )
+#define portRELEASE_ISR_LOCK( xCoreID ) vPortRecursiveLock( ( xCoreID ), ISR_LOCK, pdFALSE )
+#define portGET_ISR_LOCK( xCoreID )     vPortRecursiveLock( ( xCoreID ), ISR_LOCK, pdTRUE )
 
-#define portRELEASE_TASK_LOCK( xCoreID )    vPortRecursiveLock( xCoreID, TASK_LOCK, pdFALSE )
-#define portGET_TASK_LOCK( xCoreID )        vPortRecursiveLock( xCoreID, TASK_LOCK, pdTRUE )
+#define portRELEASE_TASK_LOCK( xCoreID )    vPortRecursiveLock( ( xCoreID ), TASK_LOCK, pdFALSE )
+#define portGET_TASK_LOCK( xCoreID )        vPortRecursiveLock( ( xCoreID ), TASK_LOCK, pdTRUE )
 
 /* Interrupt number to interrupt a core for task yield */
 #define YIELD_CORE_INTERRUPT_NO     (0U)
