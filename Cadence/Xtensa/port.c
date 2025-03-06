@@ -1,6 +1,6 @@
 /*
  * FreeRTOS Kernel <DEVELOPMENT BRANCH>
- * Copyright (C) 2015-2024 Cadence Design Systems, Inc.
+ * Copyright (C) 2015-2025 Cadence Design Systems, Inc.
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -99,8 +99,56 @@ int32_t xt_sw_intnum = -1;
 // Duplicate of inaccessible xSchedulerRunning.
 uint32_t port_xSchedulerRunning = 0U;
 
-// Interrupt nesting level.
-uint32_t port_interruptNesting  = 0U;
+#if ( configNUMBER_OF_CORES == 1 )
+
+// Interrupt nesting level and task switch flag maintained together.
+xt_internal_data_t _xt_intdata = {
+    0, 0, 0, 0xffffffff
+};
+
+#else
+
+// Interrupt variables and uxCriticalNestings contained within this
+// per-core data structure.  Structure size is padded to cache line.
+xt_internal_data_t __attribute__((aligned (XCHAL_DCACHE_LINESIZE)))
+_xt_intdata[ configNUMBER_OF_CORES ] = {
+    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+#if ( configNUMBER_OF_CORES >= 2 )
+    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+#endif
+#if ( configNUMBER_OF_CORES >= 3 )
+    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+#endif
+#if ( configNUMBER_OF_CORES >= 4 )
+    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+#endif
+#if ( configNUMBER_OF_CORES >= 5 )
+    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+#endif
+#if ( configNUMBER_OF_CORES >= 6 )
+    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+#endif
+#if ( configNUMBER_OF_CORES >= 7 )
+    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+#endif
+#if ( configNUMBER_OF_CORES == 8 )
+    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+#endif
+};
+
+xtos_mutex _xt_mutex_ISR;
+xtos_mutex _xt_mutex_task;
+
+// Ensure SMP initialization flag values are non-zero so it gets linked
+// into .data and not .bss.
+typedef enum {
+    XT_SMP_SYNC_INITVAL = 1,
+    XT_SMP_SYNC_DONE = 2,
+} xt_smp_sync_t;
+
+volatile xt_smp_sync_t xt_smp_sync = XT_SMP_SYNC_INITVAL;
+
+#endif // ( configNUMBER_OF_CORES == 1 )
 
 #undef MPU_WRAPPERS_INCLUDED_FROM_API_FILE
 
@@ -134,12 +182,12 @@ static void xt_tick_handler( void )
         // Interrupts upto configMAX_SYSCALL_INTERRUPT_PRIORITY must be
         // disabled before calling xTaskIncrementTick as it accesses the
         // kernel lists.
-        interruptMask = portSET_INTERRUPT_MASK_FROM_ISR();
+        interruptMask = taskENTER_CRITICAL_FROM_ISR();
         {
             ret = xTaskIncrementTick();
             ++xt_tick_count;
         }
-        portCLEAR_INTERRUPT_MASK_FROM_ISR( interruptMask );
+        taskEXIT_CRITICAL_FROM_ISR( interruptMask );
 
         portYIELD_FROM_ISR( ret );
 
@@ -187,6 +235,20 @@ static void xt_tick_timer_stop( void )
     xt_set_ccompare( XT_TIMER_INDEX, 0 );
 }
 
+#if ( configNUMBER_OF_CORES > 1 )
+//-----------------------------------------------------------------------------
+// portYIELD_CORE IPI handler wrapper
+//-----------------------------------------------------------------------------
+static void xt_ipi_yield_wrapper( void * arg )
+{
+    // Flag a context switch and exit; _Interrupt() will do the rest.
+    // Do NOT call vPortYieldFromInt() directly, which would result in twice
+    // saving and clearing CPENABLE, corrupting the coprocessor state.
+    UNUSED(arg);
+    portYIELD_FROM_ISR(1);  // Flag a context switch and exit
+}
+#endif
+
 //-----------------------------------------------------------------------------
 // Start the scheduler.
 //-----------------------------------------------------------------------------
@@ -196,6 +258,9 @@ BaseType_t xPortStartScheduler( void )
     extern void xt_sched_handler(void * arg);
     extern void xt_unhandled_interrupt(void * arg);
     int32_t i;
+    #endif
+    #if (configNUMBER_OF_CORES > 1 )
+    uint32_t c;
     #endif
 
     // Interrupts are disabled at this point and stack contains PS with
@@ -237,15 +302,55 @@ BaseType_t xPortStartScheduler( void )
     #if XCHAL_HAVE_ISL
     XT_WSR_ISL(0);
     #endif
-    #endif
+    #endif  // XCHAL_HAVE_XEA3
 
+    #if ( configNUMBER_OF_CORES > 1 )
+    // Initialize SMP mutexes
+    if (portGET_CORE_ID() == 0) {
+        xtos_mutex_init(&_xt_mutex_ISR);
+        xtos_mutex_init(&_xt_mutex_task);
+    } else {
+        // Ensure core 0 started first.
+        // NOTE: if this assert triggers, ensure all nonzero cores start in RunStall.
+        // On XTSC, that may entail setting the RunOnReset InitValue in subsys.yml.
+        configASSERT( port_xSchedulerRunning );
+    }
+
+    // Limit the number of cacheops to prevent hangs in case the test uses large 
+    // number of CacheOPs at the same time on multiple cores
+    xthal_L2_prefetch_set_limit(XCHAL_L2CC_MAX_REQ/2);
+
+    // Configure inter-processor interrupts that can be triggered by other cores;
+    // used for portYIELD_CORE().
+    for (c = 0; c < configNUMBER_OF_CORES; c++) {
+        if (c != portGET_CORE_ID()) {
+            uint32_t ipi_intnum[configNUMBER_OF_CORES] = XCHAL_SUBSYS_IPI_S0_INTLIST;
+            if (!xt_set_interrupt_handler(ipi_intnum[c], xt_ipi_yield_wrapper, NULL)) {
+                return pdFALSE;
+            }
+            xt_interrupt_enable(ipi_intnum[c]);
+        }
+    }
+
+    if (portGET_CORE_ID() == configTICK_CORE) {
+        // Set up and enable timer tick.
+        xt_tick_timer_init();
+    }
+    #else   // configNUMBER_OF_CORES
     // Set up and enable timer tick.
     xt_tick_timer_init();
+    #endif  // configNUMBER_OF_CORES
 
     #if XT_USE_THREAD_SAFE_CLIB
     // Init C library
-    vPortClibInit();
-    #endif
+    #if ( configNUMBER_OF_CORES > 1 )
+    if (portGET_CORE_ID() == 0)
+    #endif  // ( configNUMBER_OF_CORES > 1 )
+    {
+        // Init C library
+        vPortClibInit();
+    }
+    #endif  // XT_USE_THREAD_SAFE_CLIB
 
     #if portUSING_MPU_WRAPPERS
     // Setup MPU
@@ -254,6 +359,18 @@ BaseType_t xPortStartScheduler( void )
     #endif
 
     port_xSchedulerRunning = 1U;
+
+    #if ( configNUMBER_OF_CORES > 1 )
+    if (portGET_CORE_ID() == 0) {
+        // Cache-coherence means writeback operations are unnecessary.
+        xt_smp_sync = XT_SMP_SYNC_DONE;
+
+        // Release other cores last
+        if (xthal_run_cores(XTSUB_RUN_ALL_CORES)) {
+            return pdFALSE;
+        }
+    }
+    #endif
 
     // Cannot be directly called from C; never returns
     __asm__ volatile ("call0    _frxt_dispatch\n");
@@ -275,6 +392,41 @@ void vPortEndScheduler( void )
     xt_tick_timer_stop();
     port_xSchedulerRunning = 0U;
 }
+
+
+#if ( configNUMBER_OF_CORES > 1 )
+//-----------------------------------------------------------------------------
+// Starting with port v3.11, the SMP init process is slightly different: only
+// core 0 calls main(); other cores enter the scheduler directly via _start().
+//
+// Since SMP requires coherent shared memory, core 0 must do the following:
+// 1) initializing BSS, and 
+// 2) calling __clibrary_init()
+//
+// Nonzero cores will skip these steps and wait here until core 0 calls
+// xPortStartScheduler(), ensuring all cores are synchronized, regardless of
+// the order reset was released.
+//
+// This process is implemented by overriding the __memmap_init() hook in the
+// XTOS CRT init sequence.  Note that BSS is not initialized at this point so
+// we must only reference initialized global data.  Any systems that require
+// additional MMU/TLB setup will need to hook in here as well.
+//-----------------------------------------------------------------------------
+void __memmap_init(void)
+{
+    if (portGET_CORE_ID() > 0) {
+        portDISABLE_INTERRUPTS();
+        while (xt_smp_sync != XT_SMP_SYNC_DONE) {
+            // Busy-wait
+        }
+
+        // By this point core 0 will have initialized BSS
+        (void) xPortStartScheduler();
+        // Does not return here
+    }
+}
+#endif // ( configNUMBER_OF_CORES > 1 )
+
 
 //-----------------------------------------------------------------------------
 // Stack initialization.
@@ -522,6 +674,7 @@ void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
 
 #if portUSING_MPU_WRAPPERS
 extern void vPortResetPrivilege(BaseType_t previous);
+
 void vPortEnterCritical( void )
 {
     // TODO: handle configALLOW_UNPRIVILEGED_CRITICAL_SECTIONS
@@ -534,7 +687,6 @@ void vPortEnterCritical( void )
     }
     else
     {
-        // TODO: handle port_interruptNesting
         vTaskEnterCritical();
     }
 }
@@ -551,7 +703,6 @@ void vPortExitCritical( void )
     }
     else
     {
-        // TODO: handle port_interruptNesting
         vTaskExitCritical();
     }
 }

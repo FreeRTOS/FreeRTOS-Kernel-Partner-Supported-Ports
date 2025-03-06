@@ -1,6 +1,6 @@
 /*
  * FreeRTOS Kernel <DEVELOPMENT BRANCH>
- * Copyright (C) 2015-2024 Cadence Design Systems, Inc.
+ * Copyright (C) 2015-2025 Cadence Design Systems, Inc.
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -103,16 +103,17 @@ _Mtxunlock(_Rmtx * mtx)
     }
 }
 
+extern char _end[];
+extern char _heap_sentry;
+char * _heap_sentry_ptr = &_heap_sentry;
+char * heap_ptr;
+
 //-----------------------------------------------------------------------------
 //  Called by malloc() to allocate blocks of memory from the heap.
 //-----------------------------------------------------------------------------
 void *
 _sbrk_r (struct _reent * reent, int32_t incr)
 {
-    extern char _end[];
-    extern char _heap_sentry;
-    static char * _heap_sentry_ptr = &_heap_sentry;
-    static char * heap_ptr;
     char * base;
 
     if (!heap_ptr)
@@ -210,16 +211,17 @@ __env_unlock(struct _reent * ptr)
     __malloc_unlock(ptr);
 }
 
+extern char _end[];
+extern char _heap_sentry;
+char * _heap_sentry_ptr = &_heap_sentry;
+char * heap_ptr;
+
 //-----------------------------------------------------------------------------
 //  Called by malloc() to allocate blocks of memory from the heap.
 //-----------------------------------------------------------------------------
 void *
 _sbrk_r (struct _reent * reent, int32_t incr)
 {
-    extern char _end[];
-    extern char _heap_sentry;
-    static char * _heap_sentry_ptr = &_heap_sentry;
-    static char * heap_ptr;
     char * base;
 
     if (!heap_ptr)

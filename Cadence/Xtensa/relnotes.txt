@@ -1,3 +1,23 @@
+Notes for Version 3.11
+----------------------
+
+- FreeRTOS SMP only calls main() on core 0; non-zero cores bypass main()
+  and wait for core 0 to start the scheduler before running tasks.
+- FreeRTOS SMP no longer requires dataram.
+- FreeRTOS SMP no longer requires non-zero cores to be held in RunStall
+  during initialization.  
+- See readme_xtensa.txt for updated details and requirements.
+
+
+Notes for Version 3.10
+----------------------
+
+- This version supports FreeRTOS SMP.
+  See readme_xtensa.txt for details and requirements.
+
+- Bugfix for imprecise exception handling (NX).
+
+
 Notes for Version 3.00
 ----------------------
 

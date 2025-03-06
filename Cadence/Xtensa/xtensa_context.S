@@ -1,6 +1,6 @@
- /*
+/*
  * FreeRTOS Kernel <DEVELOPMENT BRANCH>
- * Copyright (C) 2015-2024 Cadence Design Systems, Inc.
+ * Copyright (C) 2015-2025 Cadence Design Systems, Inc.
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -314,13 +314,13 @@ _xt_context_restore:
 
     #ifdef XT_USE_SWPRI
     /* Restore virtual interrupt priority and interrupt enable */
-    movi    a3,  xt_intdata
-    l32i    a4,  a3, 0                  /* a4 = xt_intenable */
-    l32i    a5,  sp, XT_STK_VPRI        /* a5 = saved xt_vpri_mask */
+    pintdata a3, a4
+    l32i    a4,  a3, PORTINT_INTENABLE_OFF  /* a4 = xt_intenable */
+    l32i    a5,  sp, XT_STK_VPRI            /* a5 = saved xt_vpri_mask */
     and     a4,  a4, a5
-    wsr     a4,  INTENABLE              /* update INTENABLE */
-    s32i    a5,  a3, 4                  /* restore xt_vpri_mask */
-    #endif
+    wsr     a4,  INTENABLE                  /* update INTENABLE */
+    s32i    a5,  a3, PORTINT_VPRI_MASK_OFF  /* restore xt_vpri_mask */
+    #endif  // XT_USE_SWPRI
 
     l32i    a3,  sp, XT_STK_SAR
     l32i    a2,  sp, XT_STK_A2

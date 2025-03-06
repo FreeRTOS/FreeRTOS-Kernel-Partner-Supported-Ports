@@ -1,6 +1,6 @@
  /*
  * FreeRTOS Kernel <DEVELOPMENT BRANCH>
- * Copyright (C) 2015-2024 Cadence Design Systems, Inc.
+ * Copyright (C) 2015-2025 Cadence Design Systems, Inc.
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -34,6 +34,7 @@
 
 #include "xtensa_context.h"
 #include "xtensa_rtos.h"
+#include "xtensa_asm.h"
 
 
 #if XCHAL_CP_NUM > 0
@@ -49,7 +50,11 @@
         .global _xt_coproc_owner_sa
         .align  16,,XCHAL_CP_MAX << 2   //  minimize crossing cache boundaries
 _xt_coproc_owner_sa:
+#if (defined configNUMBER_OF_CORES)
+        .rept   (XCHAL_CP_MAX * configNUMBER_OF_CORES)
+#else
         .rept   XCHAL_CP_MAX
+#endif
         .word   0
         .endr
 
@@ -107,6 +112,16 @@ _xt_coproc_handler:
         addx4   a0,  a5, a0                     // a0 = &_xt_coproc_mask[n]
         l32i    a0,  a0, 0                      // a0 = (n << 16) | (1 << n)
         movi    a3,  _xt_coproc_owner_sa
+#if ( configNUMBER_OF_CORES > 1 )
+        // Increment _xt_coproc_owner_sa (a3) to per-core area
+        coreid  a2
+1:
+        beqz    a2, 2f
+        addi    a3, a3, (XCHAL_CP_MAX * 4)
+        addi    a2, a2, -1
+        j       1b
+2:
+#endif
         extui   a2,  a0, 0, 16                  // coprocessor bitmask portion
         or      a4,  a4, a2                     // a4 = CPENABLE | (1 << n)
         wsr     a4,  CPENABLE
@@ -201,6 +216,107 @@ _xt_coproc_handler:
         movi    a2,  1
         j       .L_xt_coproc_err
 
+
+#if ( configNUMBER_OF_CORES > 1 )
+
+//-----------------------------------------------------------------------------
+// _xt_coproc_saveall
+//
+// Saves all active coprocessor state to current thread's save area and disables
+// all CPENABLE bits.  Obeys ABI conventions on entry.
+// Register use:
+//   a0 - on entry, return address
+//   a1 - ...
+//   a2 - pointer to coprocessor state save area
+//   a3-a15 - may all be used and trashed by this routine.
+//-----------------------------------------------------------------------------
+
+        .text
+        .align  4
+        .global _xt_coproc_saveall
+        .type   _xt_coproc_saveall,@function
+_xt_coproc_saveall:
+
+        ENTRY(16)
+
+        // Get coprocessor state save area of new owner thread
+        mov     a11, a2                         // a11 = owner's save area
+        beqz    a11, .L_xt_coproc_saveall_inv   // not in a thread (invalid)
+        l32i    a4,  a11, XT_CP_ASA             // actual save area address
+        beqz    a4,  .L_xt_coproc_saveall_inv   // thread has no save area
+
+        // Find first CP to save
+        movi    a9,  0                          // a9 = CP index
+        movi    a8,  1                          // a8 = CP mask
+.L_check_done:
+        movi    a3,  XCHAL_CP_MASK              // a3  = Valid CP mask
+        rsr     a10, CPENABLE                   // a10 = CPENABLE
+        and     a10, a10, a3                    // Ignore invalid CPENABLE bits
+        beqz    a10, .L_xt_coproc_saveall_done
+        bany    a10, a8, .L_save_cp
+.L_check_next:
+        addi    a9,  a9, 1                      // a9 = next CP index
+        slli    a8,  a8, 1                      // a8 = next CP mask
+        bany    a10, a8, .L_save_cp
+        j       .L_check_next
+
+.L_save_cp:
+        // Clear coprocessor owner thread (save area ptr)
+        movi    a3,  _xt_coproc_owner_sa
+
+        // Increment _xt_coproc_owner_sa (a3) to per-core area
+        coreid  a5
+1:
+        beqz    a5, 2f
+        addi    a3, a3, (XCHAL_CP_MAX * 4)
+        addi    a5, a5, -1
+        j       1b
+2:      // NOTE: a5 is 0 by the time we get here
+
+        addx4   a3,  a9, a3                     // a3 = &_xt_coproc_owner_sa[n]
+        s32i    a5,  a3, 0                      // _xt_coproc_owner_sa[n] = NULL
+
+        // We need to save owner's coprocessor state
+        movi    a5,  _xt_coproc_sa_offset
+
+        // Mark owner state as no longer active (CPENABLE bit n clear)
+        xor     a4,  a10, a8                    // clear CP in owner's CPENABLE
+        s16i    a4,  a11, XT_CPENABLE           // update owner's CPENABLE
+
+        addx4   a5,  a9, a5                     // a5 = &_xt_coproc_sa_offset[n]
+
+        // Mark owner state as saved (CPSTORED bit n set)
+        l16ui   a4,  a11, XT_CPSTORED           // a4 = old owner's CPSTORED
+        l32i    a5,  a5, 0                      // a5 = XT_CP[n]_SA offset
+        or      a4,  a4, a8                     // set CP in old owner's CPSTORED
+        s16i    a4,  a11, XT_CPSTORED           // update old owner's CPSTORED
+        l32i    a2,  a11, XT_CP_ASA             // ptr to actual (aligned) save area
+        mov     a3,  a9
+        add     a2,  a2, a5                     // a2 = old owner's area for CP n
+
+        // The config-specific HAL macro invoked below destroys a2-a6.
+        // It is theoretically possible for Xtensa processor designers to write TIE
+        // that causes more address registers to be affected, but it is generally
+        // unlikely. If that ever happens, more registers needs to be saved/restored
+        // around this macro invocation, and the value in a11 needs to be recomputed.
+
+        xchal_cpi_store_funcbody
+        xor     a10, a10, a8                    // clear CP in CPENABLE
+        wsr     a10, CPENABLE
+        bnez    a10, .L_check_next
+
+.L_xt_coproc_saveall_done:
+        movi    a2,  0                          // a2 <- 0 == OK
+.L_xt_coproc_saveall_err:
+        RET(16)
+
+.L_xt_coproc_saveall_inv:
+        // Coprocessor exception occurred outside a thread or the thread
+        // did not allocate space to save coprocessor state. Return error.
+        movi    a2,  1
+        j       .L_xt_coproc_saveall_err
+
+#endif // ( configNUMBER_OF_CORES > 1 )
 
 //-----------------------------------------------------------------------------
 // _xt_coproc_savecs
