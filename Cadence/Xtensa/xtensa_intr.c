@@ -128,6 +128,7 @@ xt_unhandled_interrupt( void * arg )
   This function registers a handler for the specified interrupt. The "arg"
   parameter specifies the argument to be passed to the handler when it is
   invoked. The function returns the address of the previous handler.
+  Note that the previous handler's argument will be lost.
   On error, it returns NULL.
 */
 xt_handler
@@ -169,6 +170,40 @@ xt_set_interrupt_handler( uint32_t n, xt_handler f, void * arg )
     }
 
     return old;
+}
+
+
+/*
+  This function returns a handler for the specified interrupt.
+  If no handler has been registered, it returns a pointer to 
+  xt_unhandled_interrupt().  
+  If the interrupt number or level are invalid, it returns NULL.
+*/
+xt_handler
+xt_get_interrupt_handler( uint32_t n )
+{
+    xt_handler_table_entry * entry;
+
+    if ( n >= (uint32_t) XCHAL_NUM_INTERRUPTS )
+    {
+        // Invalid interrupt number.
+        return NULL;
+    }
+
+#if XCHAL_HAVE_XEA2
+    if ( Xthal_intlevel[n] > XCHAL_EXCM_LEVEL )
+    {
+        // Priority level too high to safely handle in C.
+        return NULL;
+    }
+#endif
+
+#if (XT_USE_INT_WRAPPER || XCHAL_HAVE_XEA3)
+    entry = _xt_interrupt_table + n + 1;
+#else
+    entry = _xt_interrupt_table + n;
+#endif
+    return entry->handler;
 }
 
 

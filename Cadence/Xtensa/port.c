@@ -194,6 +194,7 @@ BaseType_t xPortStartScheduler( void )
 {
     #if XCHAL_HAVE_XEA3
     extern void xt_sched_handler(void * arg);
+    extern void xt_unhandled_interrupt(void * arg);
     int32_t i;
     #endif
 
@@ -214,8 +215,11 @@ BaseType_t xPortStartScheduler( void )
     // Select a software interrupt to use for scheduling.
     for (i = 0; i < XCHAL_NUM_INTERRUPTS; i++) {
         if ((Xthal_inttype[i] == XTHAL_INTTYPE_SOFTWARE) && (Xthal_intlevel[i] == 1)) {
-            xt_sw_intnum = i;
-            break;
+            if (xt_get_interrupt_handler(i) == &xt_unhandled_interrupt) {
+                // Finalize the interrupt if not already in use
+                xt_sw_intnum = i;
+                break;
+            }
         }
     }
 
