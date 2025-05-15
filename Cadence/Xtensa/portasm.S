@@ -753,10 +753,15 @@ _xt_task_coproc_state:
     .data
 
     .global xt_startup_stacks
+    .type   xt_startup_stacks,@object
     .align  16
 
 xt_startup_stacks:
-    .space  XT_SYSTEM_STACK_SIZE
+    .space  XT_SYSTEM_STACK_SIZE        // Working space, argv[0], overflow
+    .space  XT_USER_SIZE                // Extra for core 0: main()/printf()/...
+
+    .global xt_startup_stack_top
+    .type   xt_startup_stack_top,@object
 xt_startup_stack_top:
     .rept   configNUMBER_OF_CORES - 1
     .space  XT_SYSTEM_STACK_SIZE
