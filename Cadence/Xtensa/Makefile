@@ -32,6 +32,7 @@ endif
 
 # Build with SMP support
 ifeq ($(SMP),1)
+SMPFLAGS    = -DPROFILE_CONTEXT_SWITCH
 endif
 
 SRCROOT     = $(subst /,$(S),$(CURDIR))
@@ -91,7 +92,7 @@ CFLAGS      = -O2 -g
 endif
 WFLAGS      = -Werror -Wall -Wextra
 CFGFLAGS   ?= 
-CCFLAGS     = $(CSTD) $(CFGFLAGS) $(CFLAGS) $(WFLAGS) -mno-coproc -mlongcalls -ffunction-sections -mno-l32r-flix $(DFLAGS) $(MPUFLAGS) $(OVLYFLAGS)
+CCFLAGS     = $(CSTD) $(CFGFLAGS) $(CFLAGS) $(WFLAGS) -mno-coproc -mlongcalls -ffunction-sections -mno-l32r-flix $(DFLAGS) $(MPUFLAGS) $(OVLYFLAGS) $(SMPFLAGS)
 ASFLAGS     = $(CCFLAGS)
 
 # File-specific flags
