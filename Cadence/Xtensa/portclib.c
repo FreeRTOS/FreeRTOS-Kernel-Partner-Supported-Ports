@@ -146,6 +146,50 @@ _reclaim_reent(struct _reent * ptr)
     (void ) ptr;    /* Avoid compiler warning */
 }
 
+//-----------------------------------------------------------------------------
+//  If xclib supports overriding reent_ptr_ as a function, then use it instead
+//  of FreeRTOS' configSET_TLS_BLOCK() hook. Required for coherent libc support
+//  on SMP; single-core is overridden too since _reent_ptr is not an lvalue.
+//-----------------------------------------------------------------------------
+#if (defined __DYNAMIC_REENT__)
+
+  #if (configNUMBER_OF_CORES > 1)
+
+struct _reent *
+__getreent(void)
+{
+    xt_internal_data_t *xt_intdata_p = &(_xt_intdata[portGET_CORE_ID()]);
+    #if ( configUSE_C_RUNTIME_TLS_SUPPORT == 1 )
+    if (xt_intdata_p->xt_reent_p) {
+        return xt_intdata_p->xt_reent_p;
+    }
+    #endif /* configUSE_C_RUNTIME_TLS_SUPPORT */
+
+    // If TLS not configured or libc is used prior to starting the scheduler
+    return &(xt_intdata_p->xt_reent);
+}
+
+  #else /* (configNUMBER_OF_CORES == 1) */
+
+static struct _reent xt_reent __attribute__ ((section (".clib.percpu.bss")));
+
+struct _reent *
+__getreent(void)
+{
+    #if ( configUSE_C_RUNTIME_TLS_SUPPORT == 1 )
+    if (_xt_intdata.xt_reent_p) {
+        return _xt_intdata.xt_reent_p;
+    }
+    #endif /* configUSE_C_RUNTIME_TLS_SUPPORT */
+
+    // If TLS not configured or libc is used prior to starting the scheduler
+    return &xt_reent;
+}
+
+  #endif /* configNUMBER_OF_CORES */
+
+#endif /* __DYNAMIC_REENT__ */
+
 #endif /* XSHAL_CLIB == XTHAL_CLIB_XCLIB */
 
 #if XSHAL_CLIB == XTHAL_CLIB_NEWLIB

@@ -32,7 +32,7 @@ endif
 
 # Build with SMP support
 ifeq ($(SMP),1)
-SMPFLAGS    = -DPROFILE_CONTEXT_SWITCH
+SMPFLAGS    = -DPROFILE_CONTEXT_SWITCH -DSMP_TEST
 endif
 
 SRCROOT     = $(subst /,$(S),$(CURDIR))

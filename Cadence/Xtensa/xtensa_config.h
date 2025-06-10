@@ -128,9 +128,19 @@
       #define XT_CLIB_GLOBAL_PTR            _reent_ptr
       #define _REENT_INIT_PTR               _init_reent
       #define _impure_ptr                   _reent_ptr
+      #if (defined __DYNAMIC_REENT__)
+        // For xclib with support for custom reent_ptr_() we keep
+        // _impure_ptr within interrupt data struct
+        #if (configNUMBER_OF_CORES > 1)
+        #define configSET_TLS_BLOCK(xTLSBlock)  ( _xt_intdata[portGET_CORE_ID()].xt_reent_p = \
+                                                    &( xTLSBlock ) )
+        #else
+        #define configSET_TLS_BLOCK(xTLSBlock)  ( _xt_intdata.xt_reent_p = &( xTLSBlock ) )
+        #endif
+      #endif // __DYNAMIC_REENT__
 
       void _reclaim_reent(struct _reent * ptr);
-    #endif
+    #endif  // !__ASSEMBLER__
   #elif XSHAL_CLIB == XTHAL_CLIB_NEWLIB
     #define XT_HAVE_THREAD_SAFE_CLIB        1
     #if !defined __ASSEMBLER__
@@ -139,14 +149,14 @@
       #define XT_CLIB_GLOBAL_PTR            _impure_ptr
 
       void _reclaim_reent(struct _reent * ptr);
-    #endif
-  #else
+    #endif  // !__ASSEMBLER__
+  #else     // XTHAL_CLIB_XCLIB || XTHAL_CLIB_NEWLIB
     #define XT_HAVE_THREAD_SAFE_CLIB        0
     #error The selected C runtime library is not thread safe.
-  #endif
+  #endif    // XTHAL_CLIB_XCLIB || XTHAL_CLIB_NEWLIB
 #else
   #define XT_CLIB_CONTEXT_AREA_SIZE         0
-#endif
+#endif      // XT_USE_THREAD_SAFE_CLIB
 
 /*------------------------------------------------------------------------------
   Extra size -- interrupt frame plus coprocessor save area plus hook space.

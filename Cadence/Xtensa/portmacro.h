@@ -50,6 +50,7 @@
 /* required for SMP support */
 #include <xtensa/xtruntime.h>
 #include <xtensa/xtsubsystem.h>
+#include <sys/reent.h>
 
 /*-----------------------------------------------------------
  * Port specific definitions.
@@ -247,6 +248,10 @@ BaseType_t xPortRaisePrivilege( void );
     #error "SMP support requires at least one set of inter-processor interrupts (IPIs)"
 #endif
 
+#if XSHAL_CLIB != XTHAL_CLIB_XCLIB
+    #warning "SMP support highly recommends xclib for libc reentrancy
+#endif
+
 #if (XCHAL_INT_LEVEL(XCHAL_SUBSYS_IPI_S0C0_INTNUM) > XCHAL_EXCM_LEVEL)
 #error IPI S0C0 core interrupt is > XCHAL_EXCM_LEVEL
 #endif
@@ -283,19 +288,30 @@ BaseType_t xPortRaisePrivilege( void );
      * since various members are read or written by their own core.  If new fields
      * are added, XT_PERCORE_DATA_SIZE must be adjusted accordingly.
      */
+#if (defined __DYNAMIC_REENT__)
+    #define XT_PERCORE_DATA_SIZE        (sizeof(UBaseType_t) + 20 + sizeof(struct _reent))
+#else
     #define XT_PERCORE_DATA_SIZE        (sizeof(UBaseType_t) + 16)
+#endif
 
     typedef struct xt_internal_data {
-        uint32_t port_interruptNesting;    // First field for asm efficiency
+        uint32_t port_interruptNesting;     // First field for asm efficiency
         uint32_t port_switch_flag;
         UBaseType_t uxCriticalNestings;
         uint32_t xt_intenable;
         uint32_t xt_vpri_mask;
-        uint8_t  pad[XCHAL_DCACHE_LINESIZE - XT_PERCORE_DATA_SIZE];
+#if (defined __DYNAMIC_REENT__)
+        struct _reent *xt_reent_p;          // When xclib defines _reent_ptr()
+        struct _reent xt_reent;
+#endif
+        uint8_t  pad[XCHAL_DCACHE_LINESIZE -
+                     (XT_PERCORE_DATA_SIZE & (XCHAL_DCACHE_LINESIZE - 1))];
     } xt_internal_data_t;
 
-    static_assert( offsetof(xt_internal_data_t, port_interruptNesting) == 0, "Bad xt_internal_data field order" );
-    static_assert( sizeof(xt_internal_data_t) == XCHAL_DCACHE_LINESIZE, "Incorrect xt_internal_data padding" );
+    static_assert( offsetof(xt_internal_data_t, port_interruptNesting) == 0,
+            "Bad xt_internal_data field order" );
+    static_assert( ((sizeof(xt_internal_data_t) & (XCHAL_DCACHE_LINESIZE - 1)) == 0),
+            "Incorrect xt_internal_data padding" );
 
     #define portGET_CORE_ID()           xthal_get_coreid()
     #define portYIELD_CORE(xCoreID)     xthal_ipi_trigger(xCoreID)
@@ -331,10 +347,13 @@ BaseType_t xPortRaisePrivilege( void );
      * structure pointer.
      */
     typedef struct xt_internal_data {
-        uint32_t port_interruptNesting;    // First field for asm efficiency
+        uint32_t port_interruptNesting;     // First field for asm efficiency
         uint32_t port_switch_flag;
         uint32_t xt_intenable;
         uint32_t xt_vpri_mask;
+#if (defined __DYNAMIC_REENT__)
+        struct _reent *xt_reent_p;          // When xclib defines _reent_ptr()
+#endif
     } xt_internal_data_t;
 
     static_assert( offsetof(xt_internal_data_t, port_interruptNesting) == 0, "Bad xt_internal_data field order" );

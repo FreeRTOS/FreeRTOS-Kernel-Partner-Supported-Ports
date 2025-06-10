@@ -49,6 +49,9 @@
 #include    <xtensa/corebits.h>
 #include    <xtensa/config/system.h>
 
+/* For configNUMBER_OF_CORES */
+#include    <FreeRTOSConfig.h>
+
 
 /* Align a value up to nearest n-byte boundary, where n is a power of 2. */
 #ifdef __ASSEMBLER__

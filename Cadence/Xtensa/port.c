@@ -99,11 +99,21 @@ int32_t xt_sw_intnum = -1;
 // Duplicate of inaccessible xSchedulerRunning.
 uint32_t port_xSchedulerRunning = 0U;
 
+#if (defined __DYNAMIC_REENT__)
+  #if ( configNUMBER_OF_CORES > 1 )
+    #define _XT_INTDATA_REENT_INIT      NULL, { 0 },
+  #else
+    #define _XT_INTDATA_REENT_INIT      NULL,
+  #endif    // configNUMBER_OF_CORES > 1
+#else
+    #define _XT_INTDATA_REENT_INIT
+#endif      // __DYNAMIC_REENT__
+
 #if ( configNUMBER_OF_CORES == 1 )
 
 // Interrupt nesting level and task switch flag maintained together.
 xt_internal_data_t _xt_intdata = {
-    0, 0, 0, 0xffffffff
+    0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT
 };
 
 #else
@@ -112,27 +122,27 @@ xt_internal_data_t _xt_intdata = {
 // per-core data structure.  Structure size is padded to cache line.
 xt_internal_data_t __attribute__((aligned (XCHAL_DCACHE_LINESIZE)))
 _xt_intdata[ configNUMBER_OF_CORES ] = {
-    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+    { 0, 0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT { 0 } },
 #if ( configNUMBER_OF_CORES >= 2 )
-    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+    { 0, 0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT { 0 } },
 #endif
 #if ( configNUMBER_OF_CORES >= 3 )
-    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+    { 0, 0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT { 0 } },
 #endif
 #if ( configNUMBER_OF_CORES >= 4 )
-    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+    { 0, 0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT { 0 } },
 #endif
 #if ( configNUMBER_OF_CORES >= 5 )
-    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+    { 0, 0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT { 0 } },
 #endif
 #if ( configNUMBER_OF_CORES >= 6 )
-    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+    { 0, 0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT { 0 } },
 #endif
 #if ( configNUMBER_OF_CORES >= 7 )
-    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+    { 0, 0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT { 0 } },
 #endif
 #if ( configNUMBER_OF_CORES == 8 )
-    { 0, 0, 0, 0, 0xffffffff, { 0 } },
+    { 0, 0, 0, 0, 0xffffffff, _XT_INTDATA_REENT_INIT { 0 } },
 #endif
 };
 
