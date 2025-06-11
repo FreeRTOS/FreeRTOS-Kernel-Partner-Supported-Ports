@@ -283,6 +283,11 @@ XSTRUCT_END(XtExcFrame)
   increasing context switching latency. For this reason, it is recommended
   (but not required) that all tasks using a co-processor be pinned to a core.
 
+  NOTE: SMP applications should only change affinity masks on the currently-
+  running task or on a task that has fully saved/released its coprocessors;
+  changing the affinity on an inactive preempted task could result in 
+  coprocessor data loss and must be avoided.
+
   The co-processor state save area may be in any convenient per-thread location
   such as in the thread control block or above the thread stack area. It need
   not be in the interrupt stack frame since interrupts don't use co-processors.

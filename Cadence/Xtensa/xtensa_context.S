@@ -388,7 +388,11 @@ _xt_coproc_init:
 
     /* Initialize thread co-processor ownerships to 0 (unowned). */
     movi    a2, _xt_coproc_owner_sa         /* a2 = base of owner array */
+#if (defined configNUMBER_OF_CORES)
+    addi    a3, a2, (XCHAL_CP_MAX * configNUMBER_OF_CORES) << 2 /* a3 = top+1 of owner array */
+#else
     addi    a3, a2, XCHAL_CP_MAX << 2       /* a3 = top+1 of owner array */
+#endif
     movi    a4, 0                           /* a4 = 0 (unowned) */
 1:  s32i    a4, a2, 0
     addi    a2, a2, 4
@@ -432,7 +436,11 @@ _xt_coproc_release:
     ENTRY0                                  /* a2 = base of save area */
 
     movi    a3, _xt_coproc_owner_sa         /* a3 = base of owner array */
+#if (defined configNUMBER_OF_CORES)
+    addi    a4, a3, (XCHAL_CP_MAX * configNUMBER_OF_CORES) << 2 /* a4 = top+1 of owner array */
+#else
     addi    a4, a3, XCHAL_CP_MAX << 2       /* a4 = top+1 of owner array */
+#endif
     movi    a5, 0                           /* a5 = 0 (unowned) */
 
 #if XCHAL_HAVE_XEA3

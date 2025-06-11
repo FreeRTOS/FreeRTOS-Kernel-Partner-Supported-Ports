@@ -41,6 +41,24 @@ port_yield_flag:
     .word       0
 #endif
 
+#if (XCHAL_CP_NUM > 0) && (configNUMBER_OF_CORES > 1) && (configUSE_CORE_AFFINITY == 1)
+    /* Keep some affinity bitmasks to quickly decide whether to save CP state */
+    .data
+port_affinity_masks:
+    .word       ~0x1
+    .word       ~0x2
+ #if ( configNUMBER_OF_CORES > 2 )
+    .word       ~0x4
+    .word       ~0x8
+  #if ( configNUMBER_OF_CORES > 4 )
+    .word       ~0x10
+    .word       ~0x20
+    .word       ~0x40
+    .word       ~0x80
+  #endif
+ #endif
+#endif
+
 
 #if portUSING_MPU_WRAPPERS
     .section "privileged_functions"
@@ -548,7 +566,7 @@ vPortYield:
     beqz    a2,  1f
     s16i    a3,  a2, XT_CPENABLE        /* clear saved cpenable             */
 1:
-    #endif
+    #endif /* XCHAL_CP_NUM > 0 */
 
     /* Tail-call dispatcher. */
     call0   _frxt_dispatch
@@ -583,7 +601,7 @@ vPortYieldFromInt:
 
 #if XCHAL_CP_NUM > 0
     /* Save CPENABLE in task's co-processor save area, and clear CPENABLE.  */
-    pxctcb  a3, a2                      /* pxCurrentTCB or pxCurrentTCBs[] */
+    pxctcb  a3, a6                      /* pxCurrentTCB or pxCurrentTCBs[] */
     l32i    a3, a3, 0
     l32i    a2, a3, TCB_END_OF_STACK_OFF
 
@@ -593,11 +611,12 @@ vPortYieldFromInt:
     beqz    a4, .Lnocp_save
 
     #if ( configUSE_CORE_AFFINITY == 1 )
-    /* Task can run on other cores if affinity mask has multiple bits set */
+    /* Task can run on other cores if affinity mask has bit(s) set for other cores */
+    movi    a5, port_affinity_masks
+    addx4   a5, a6, a5
+    l32i    a5, a5, 0
     l32i    a3, a3, TCB_CORE_AFFINITY_MASK_OFF
-    beqz    a3, .Lcp_save
-    addi    a5, a3, -1
-    bnone   a3, a5, .Lnocp_save         /* mult bits set if ((x & (x-1)) != 0) */
+    bnone   a3, a5, .Lnocp_save         /* skip save if task only runnable on current core */
 .Lcp_save:
     #endif /* ( configUSE_CORE_AFFINITY == 1 ) */
 

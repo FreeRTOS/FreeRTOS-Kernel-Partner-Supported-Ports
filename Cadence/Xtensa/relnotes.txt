@@ -3,6 +3,7 @@ Notes for Version 3.12
 
 - FreeRTOS SMP fully implements thread-safe and multi-core reentrancy
   using xclib when built with RJ-2025.5-p1 or newer toolchain.
+- FreeRTOS SMP fixes for some coprocessor save/restore problems.
 
 
 Notes for Version 3.11

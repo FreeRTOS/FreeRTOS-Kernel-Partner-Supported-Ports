@@ -356,68 +356,110 @@ _xt_coproc_savecs:
         s16i    a11, a15, XT_CP_CS_ST           // save mask of CPs being stored
         movi    a13, _xt_coproc_sa_offset       // array of CP save offsets
         l32i    a15, a15, XT_CP_ASA             // a15 = base of aligned save area
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a12, _xt_coproc_owner_sa
+        coreid  a14
+1:
+        beqz    a14, 2f
+        addi    a12, a12, (XCHAL_CP_MAX * 4)    // a12 = &_xt_coproc_owner_sa[core]
+        addi    a14, a14, -1
+        j       1b
+2:
+#endif  /* configNUMBER_OF_CORES > 1 */
 
 #if XCHAL_CP0_SA_SIZE
         bbci.l  a11, 0, 2f                      // CP 0 not enabled
         l32i    a14, a13, 0                     // a14 = _xt_coproc_sa_offset[0]
-        add     a12, a14, a15                   // a12 = save area for CP 0
-        xchal_cp0_store a12, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+        add     a14, a14, a15                   // a14 = save area for CP 0
+        xchal_cp0_store a14, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a7, 0
+        s32i    a7, a12, 0                      // _xt_coproc_owner_sa[core][n] = NULL
+#endif
 2:
 #endif
 
 #if XCHAL_CP1_SA_SIZE
         bbci.l  a11, 1, 2f                      // CP 1 not enabled
         l32i    a14, a13, 4                     // a14 = _xt_coproc_sa_offset[1]
-        add     a12, a14, a15                   // a12 = save area for CP 1
-        xchal_cp1_store a12, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+        add     a14, a14, a15                   // a14 = save area for CP 1
+        xchal_cp1_store a14, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a7, 0
+        s32i    a7, a12, 4                      // _xt_coproc_owner_sa[core][n] = NULL
+#endif
 2:
 #endif
 
 #if XCHAL_CP2_SA_SIZE
         bbci.l  a11, 2, 2f
         l32i    a14, a13, 8
-        add     a12, a14, a15
-        xchal_cp2_store a12, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+        add     a14, a14, a15
+        xchal_cp2_store a14, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a7, 0
+        s32i    a7, a12, 8                      // _xt_coproc_owner_sa[core][n] = NULL
+#endif
 2:
 #endif
 
 #if XCHAL_CP3_SA_SIZE
         bbci.l  a11, 3, 2f
         l32i    a14, a13, 12
-        add     a12, a14, a15
-        xchal_cp3_store a12, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+        add     a14, a14, a15
+        xchal_cp3_store a14, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a7, 0
+        s32i    a7, a12, 12                     // _xt_coproc_owner_sa[core][n] = NULL
+#endif
 2:
 #endif
 
 #if XCHAL_CP4_SA_SIZE
         bbci.l  a11, 4, 2f
         l32i    a14, a13, 16
-        add     a12, a14, a15
-        xchal_cp4_store a12, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+        add     a14, a14, a15
+        xchal_cp4_store a14, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a7, 0
+        s32i    a7, a12, 16                     // _xt_coproc_owner_sa[core][n] = NULL
+#endif
 2:
 #endif
 
 #if XCHAL_CP5_SA_SIZE
         bbci.l  a11, 5, 2f
         l32i    a14, a13, 20
-        add     a12, a14, a15
-        xchal_cp5_store a12, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+        add     a14, a14, a15
+        xchal_cp5_store a14, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a7, 0
+        s32i    a7, a12, 20                     // _xt_coproc_owner_sa[core][n] = NULL
+#endif
 2:
 #endif
 
 #if XCHAL_CP6_SA_SIZE
         bbci.l  a11, 6, 2f
         l32i    a14, a13, 24
-        add     a12, a14, a15
-        xchal_cp6_store a12, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+        add     a14, a14, a15
+        xchal_cp6_store a14, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a7, 0
+        s32i    a7, a12, 24                     // _xt_coproc_owner_sa[core][n] = NULL
+#endif
 2:
 #endif
 
 #if XCHAL_CP7_SA_SIZE
         bbci.l  a11, 7, 2f
         l32i    a14, a13, 28
-        add     a12, a14, a15
-        xchal_cp7_store a12, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+        add     a14, a14, a15
+        xchal_cp7_store a14, a7, a8, a9, a10 continue=0 ofs=-1 select=XTHAL_SAS_TIE|XTHAL_SAS_NOCC|XTHAL_SAS_CALE alloc=XTHAL_SAS_ALL
+#if ( configNUMBER_OF_CORES > 1 )
+        movi    a7, 0
+        s32i    a7, a12, 28                     // _xt_coproc_owner_sa[core][n] = NULL
+#endif
 2:
 #endif
 
