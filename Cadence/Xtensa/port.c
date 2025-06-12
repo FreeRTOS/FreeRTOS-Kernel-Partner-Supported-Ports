@@ -146,8 +146,70 @@ _xt_intdata[ configNUMBER_OF_CORES ] = {
 #endif
 };
 
-xtos_mutex _xt_mutex_ISR;
-xtos_mutex _xt_mutex_task;
+xt_mutex _xt_mutex_ISR;
+xt_mutex _xt_mutex_task;
+
+/*
+ * Initialize the mutex.
+ */
+void
+xt_mutex_init(xt_mutex_p pmtx)
+{
+    if (pmtx != NULL) {
+        pmtx->owner = 0U;
+        pmtx->count = 0U;
+    }
+}
+
+/*
+ * Lock the mutex, busy wait until lock acquired. Can be called repeatedly
+ * to lock an already owned mutex. Note the locking is not protected against
+ * interrupts. This is a potentially blocking function and should not be
+ * called from an interrupt handler anyway.
+ */
+int32_t
+xt_mutex_lock(xt_mutex_p pmtx)
+{
+    uint32_t id = (portGET_CORE_ID()) + 1U;
+
+    if (pmtx != NULL) {
+        if (pmtx->owner == id) {
+            pmtx->count++;
+        }
+        else {
+            int32_t ret;
+
+            do {
+                ret = xthal_compare_and_set((int32_t *) &(pmtx->owner), 0, (int32_t) id);
+            } while (ret != 0);
+            pmtx->count = 1U;
+        }
+        return 0;
+    }
+
+    return -1;
+}
+
+/*
+ * Unlock the mutex. Can be called repeatedly to unlock the same mutex.
+ * The lock is only released when the lock count goes to zero.
+ */
+int32_t
+xt_mutex_unlock(xt_mutex_p pmtx)
+{
+    uint32_t id = (portGET_CORE_ID()) + 1U;
+
+    if ((pmtx != NULL) && (pmtx->owner == id)) {
+        pmtx->count--;
+        if (pmtx->count == 0U) {
+            pmtx->owner = 0U;
+        }
+        return 0;
+    }
+
+    return -1;
+}
+
 
 // Ensure SMP initialization flag values are non-zero so it gets linked
 // into .data and not .bss.
@@ -317,8 +379,8 @@ BaseType_t xPortStartScheduler( void )
     #if ( configNUMBER_OF_CORES > 1 )
     // Initialize SMP mutexes
     if (portGET_CORE_ID() == 0) {
-        xtos_mutex_init(&_xt_mutex_ISR);
-        xtos_mutex_init(&_xt_mutex_task);
+        xt_mutex_init(&_xt_mutex_ISR);
+        xt_mutex_init(&_xt_mutex_task);
     } else {
         // Ensure core 0 started first.
         // NOTE: if this assert triggers, ensure all nonzero cores start in RunStall.

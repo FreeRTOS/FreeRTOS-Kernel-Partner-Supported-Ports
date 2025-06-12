@@ -48,7 +48,6 @@
 #include <xtensa/config/system.h>   /* required for XSHAL_CLIB */
 
 /* required for SMP support */
-#include <xtensa/xtruntime.h>
 #include <xtensa/xtsubsystem.h>
 #include <sys/reent.h>
 
@@ -236,6 +235,10 @@ BaseType_t xPortRaisePrivilege( void );
     #error "SMP support requires PRID"
 #endif
 
+#if !XCHAL_HAVE_EXCLUSIVE
+    #error "SMP support requires Exclusive Store to implement locks"
+#endif
+
 #if portUSING_MPU_WRAPPERS
     #error "SMP support requires FreeRTOS MPU wrappers to be off"
 #endif
@@ -317,12 +320,28 @@ BaseType_t xPortRaisePrivilege( void );
     #define portYIELD_CORE(xCoreID)     xthal_ipi_trigger(xCoreID)
     #define portCRITICAL_NESTING_IN_TCB 0   // Nesting managed by port for SMP
 
-    extern xtos_mutex _xt_mutex_ISR;
-    extern xtos_mutex _xt_mutex_task;
-    #define portGET_ISR_LOCK()         xtos_mutex_lock(&_xt_mutex_ISR)
-    #define portRELEASE_ISR_LOCK()     xtos_mutex_unlock(&_xt_mutex_ISR)
-    #define portGET_TASK_LOCK()        xtos_mutex_lock(&_xt_mutex_task)
-    #define portRELEASE_TASK_LOCK()    xtos_mutex_unlock(&_xt_mutex_task)
+    /* Mutex APIs for SMP locks -- based on XTOS implementation.
+     * Requires Xtensa Exclusive Store and PRID options to be present.
+     * Must reside in shared memory and declared statically (not on the stack).
+     */
+    typedef struct xt_mutex {
+        uint32_t owner;
+        uint32_t count;
+    } xt_mutex;
+
+    typedef xt_mutex *  xt_mutex_p;
+
+    extern xt_mutex _xt_mutex_ISR;
+    extern xt_mutex _xt_mutex_task;
+
+    extern void xt_mutex_init(xt_mutex_p pmtx);
+    extern int32_t xt_mutex_lock(xt_mutex_p pmtx);
+    extern int32_t xt_mutex_unlock(xt_mutex_p pmtx);
+
+    #define portGET_ISR_LOCK()         xt_mutex_lock(&_xt_mutex_ISR)
+    #define portRELEASE_ISR_LOCK()     xt_mutex_unlock(&_xt_mutex_ISR)
+    #define portGET_TASK_LOCK()        xt_mutex_lock(&_xt_mutex_task)
+    #define portRELEASE_TASK_LOCK()    xt_mutex_unlock(&_xt_mutex_task)
 
     // uxCriticalNestings maintained within per-core data
     extern xt_internal_data_t _xt_intdata[ configNUMBER_OF_CORES ];
