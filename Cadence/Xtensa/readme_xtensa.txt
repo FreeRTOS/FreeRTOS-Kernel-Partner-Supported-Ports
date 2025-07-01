@@ -776,7 +776,7 @@ https://www.freertos.org/Documentation/02-Kernel/02-Kernel-features/13-Symmetric
 
 Important information regarding Xtensa SMP support:
 
-- Core configuration requirements for FreeRTOS SMP (updated in v3.11):
+- Current core configuration requirements for FreeRTOS SMP:
 
   1. MPU hardware (for coherence)
   2. 1 set of inter-processor interrupts (IPIs) <= EXCM_LEVEL
@@ -784,8 +784,7 @@ Important information regarding Xtensa SMP support:
      as such, the exclusive access option is subsequently required
   4. Unrelated to SMP, 1 timer per core <= EXCM_LEVEL and 
      1 software interrupt per core <= EXCM_LEVEL are required
-  5. Xtensa C library (xclib) software support is required;
-     newlib is not currently supported for SMP builds
+  5. Xtensa C library (xclib) software support is required
 
 - SMP support requires Xtensa toolchain version RJ-2025.5 or newer.
 
