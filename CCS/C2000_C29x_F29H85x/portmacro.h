@@ -92,12 +92,14 @@ typedef portSTACK_TYPE  StackType_t;
 typedef int32_t         BaseType_t;
 typedef uint32_t        UBaseType_t;
 
-#if( configUSE_16_BIT_TICKS == 1 )
-  typedef uint16_t TickType_t;
-  #define portMAX_DELAY ( TickType_t ) 0xffff
+#if ( configTICK_TYPE_WIDTH_IN_BITS == TICK_TYPE_WIDTH_16_BITS )
+    typedef uint16_t        TickType_t;
+    #define portMAX_DELAY   ( TickType_t ) 0xffff
+#elif ( configTICK_TYPE_WIDTH_IN_BITS == TICK_TYPE_WIDTH_32_BITS )
+    typedef uint32_t        TickType_t;
+    #define portMAX_DELAY   ( TickType_t ) 0xffffffffUL
 #else
-  typedef uint32_t TickType_t;
-  #define portMAX_DELAY ( TickType_t ) 0xffffffffUL
+    #error configTICK_TYPE_WIDTH_IN_BITS set to unsupported tick type width.
 #endif
 
 //-------------------------------------------------------------------------------------------------
@@ -135,6 +137,13 @@ void vPortTaskUsesFPU( void );
     #define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities )  uxTopPriority = ( 31 - __builtin_c29_i32_clzeros_d( ( uxReadyPriorities ) ) )
 
 #endif /* configUSE_PORT_OPTIMISED_TASK_SELECTION */
+
+//-------------------------------------------------------------------------------------------------
+// Architecture specific checks.
+//-------------------------------------------------------------------------------------------------
+#if ( configUSE_MINI_LIST_ITEM == 1 )
+    #error configUSE_MINI_LIST_ITEM must be set to 0 for this port.
+#endif
 
 //-------------------------------------------------------------------------------------------------
 // Critical section control macros.
