@@ -48,7 +48,11 @@
 #include <xtensa/config/system.h>   /* required for XSHAL_CLIB */
 
 /* required for SMP support */
+#if (XCHAL_SW_VERSION < 1506000)
+#include "xtsubsystem_patch.h"
+#else
 #include <xtensa/xtsubsystem.h>
+#endif
 #include <sys/reent.h>
 
 /*-----------------------------------------------------------
