@@ -60,6 +60,7 @@
 /* Define necessary hardware IO for OSTM timer.
  * - OSTM0 is used by default for device variant U2Bx.
  * - OSTM1 is used by default for device variant U2Ax.
+ * - OSTM0 is used by default for device variant U2Cx.
  * If it conflicts with the application, the application should implement another timer. */
 #if ( configDEVICE_NAME == U2Bx_DEVICES )
     #define portOSTM_EIC_ADDR    ( 0xfff802d0 )
@@ -71,6 +72,11 @@
     #define portOSTMCMP_ADDR     ( 0xffbf0100 )
     #define portOSTMCTL_ADDR     ( 0xffbf0120 )
     #define portOSTMTS_ADDR      ( 0xffbf0114 )
+#elif ( configDEVICE_NAME == U2Cx_DEVICES )
+    #define portOSTM_EIC_ADDR    ( 0xfff8007e )
+    #define portOSTMCMP_ADDR     ( 0xffbf0000 )
+    #define portOSTMCTL_ADDR     ( 0xffbf0020 )
+    #define portOSTMTS_ADDR      ( 0xffbf0014 )
 #endif
 
 #if ( configNUMBER_OF_CORES > 1 )
