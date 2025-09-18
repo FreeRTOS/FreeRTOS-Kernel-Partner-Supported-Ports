@@ -18,7 +18,7 @@ This repository contains the port of FreeRTOS for Renesas RH850/U2x microcontrol
 
 ## Link to Test Project
 
-The test project can be found in [RH850_U2Ax_CCRH](https://github.com/FreeRTOS/FreeRTOS-Partner-Supported-Demos) and [RH850_U2Bx_CCRH](https://github.com/FreeRTOS/FreeRTOS-Partner-Supported-Demos). This project contains example tasks and configurations to help you get started with FreeRTOS on the RH850/U2Ax and U2Bx.
+The test project can be found in [RH850_U2Ax_CCRH](https://github.com/FreeRTOS/FreeRTOS-Partner-Supported-Demos) and [RH850_U2Bx_CCRH](https://github.com/FreeRTOS/FreeRTOS-Partner-Supported-Demos). These projects contain example tasks and configurations to help you get started with FreeRTOS on the RH850/U2Ax and U2Bx.
 
 ## Note
    1. The minimal stack size (configMINIMAL_STACK_SIZE) must be included the reserved memory for nested interrupt. This formula can be referred: `(task_context_size) * (2 + configMAX_INT_NESTING) + Stack_depth_of_taskcode`
