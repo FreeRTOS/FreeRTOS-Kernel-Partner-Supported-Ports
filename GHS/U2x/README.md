@@ -15,11 +15,10 @@ This repository contains the port of FreeRTOS for Renesas RH850/U2x microcontrol
 | U2A16    | Yes | No  | Yes |
 | U2B6     | Yes | Yes | Yes |
 | U2B10    | Yes | Yes | Yes |
-| U2C8     | Yes | No  | Yes |
 
 ## Link to Test Project
 
-The test project can be found in [RH850_U2Ax_GHS](https://github.com/renesas/FreeRTOS-Partner-Supported-Demos/tree/u2x_port/), [RH850_U2Bx_GHS](https://github.com/renesas/FreeRTOS-Partner-Supported-Demos/tree/u2x_port/) and [RH850_U2Cx_GHS](https://github.com/renesas/FreeRTOS-Partner-Supported-Demos/tree/u2x_port/). This project contains example tasks and configurations to help you get started with FreeRTOS on the RH850/U2Ax, U2Bx and U2Cx.
+The test project can be found in [RH850_U2Ax_GHS](https://github.com/renesas/FreeRTOS-Partner-Supported-Demos/tree/u2x_port/) and [RH850_U2Bx_GHS](https://github.com/renesas/FreeRTOS-Partner-Supported-Demos/tree/u2x_port/). This project contains example tasks and configurations to help you get started with FreeRTOS on the RH850/U2Ax and U2Bx.
 
 ## Note
    1. The minimal stack size `configMINIMAL_STACK_SIZE` must be included the reserved memory for nested interrupt. This formula can be referred: `(task_context_size) * (2 + configMAX_INT_NESTING) + Stack_depth_of_taskcode`
@@ -34,7 +33,7 @@ Example:
    ```
    3. The `FXU unit` is only available on `core 0`. Users must ensure that FXU operations are restricted to `core 0` by using the `vTaskCoreAffinitySet` function provided by FreeRTOS SMP.
    4. Set the macro `configENABLE_FXU` to `1` to enable the `FXU unit`; otherwise set `0` to disable `FXU unit`.
-   5. This port supports both U2Ax, U2Bx and U2Cx devices. The user must configure `configDEVICE_NAME` with the value `U2Cx_DEVICES` or `U2Bx_DEVICES` or `U2Ax_DEVICES` to specify which device is being used.
+   5. This port supports both U2Ax and U2Bx devices. The user must configure `configDEVICE_NAME` with the value `U2Bx_DEVICES` or `U2Ax_DEVICES` to specify which device is being used.
    6. The User can configure the interrupt priority of the OSTM Timer using `configTIMER_INT_PRIORITY`, with 16 levels available (0 being the highest priority and 15 the lowest).
    7. This port also supports the configuration of contiguous CPU cores in FreeRTOS, allowing the user to set task affinity for execution on specific cores or subsets of cores.
 
