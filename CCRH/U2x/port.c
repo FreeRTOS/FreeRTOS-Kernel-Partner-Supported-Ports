@@ -46,7 +46,7 @@
 #define portFXSR_REGISTER_SEL        ( 10 )
 
 /* PSW.EBV and PSW.CUx bits are kept as current status */
-#define portINITIAL_PSW_MASK         ( 0x00078000 )
+#define portINITIAL_PSW_MASK         ( 0x00038000 )
 #define portCURRENT_PSW_VALUE        ( portSTSR( portPSW_REGISTER_ID, portREGISTER_SEL_0 ) )
 #define portCURRENT_SR_ZERO_VALUE    ( ( StackType_t ) 0x00000000 )
 #define portCURRENT_FPSR_VALUE       ( portSTSR( portFPSR_REGISTER_ID, portREGISTER_SEL_0 ) )
@@ -56,6 +56,8 @@
 #define portINITIAL_FPSR_MASK        ( 0x00ae0000 )
 #define portINITIAL_FXSR_MASK        ( 0x00ee0000 )
 #define portPSW_ID_MASK              ( 0x00000020 )
+#define portPSW_FPU_MASK             ( 0x00010000 )
+#define portPSW_FXU_MASK             ( 0x00020000 )
 
 /* Define necessary hardware IO for OSTM timer.
  * - OSTM0 is used by default for device variant U2Bx.
@@ -151,19 +153,6 @@
     #define configSETUP_TICK_INTERRUPT()    prvSetupTimerInterrupt()
 #endif /* configSETUP_TICK_INTERRUPT */
 
-#if ( !defined( configMAX_INT_NESTING ) || ( configMAX_INT_NESTING == 0 ) )
-
-/* Set the default value for depth of nested interrupt. In theory, the
- * microcontroller have mechanism to limit number of nested level of interrupt
- * by priority (maximum 16 levels). However, the large stack memory should be
- * prepared for each task to save resource in interrupt handler. Therefore, it
- * is necessary to limit depth of nesting interrupt to optimize memory usage.
- * In addition, the execution time of interrupt handler should be very short
- * (typically not exceed 20us), this constraint does not impact to system.
- */
-    #define configMAX_INT_NESTING    2UL
-#endif
-
 /*
  * Used to catch tasks that attempt to return from their implementing function.
  */
@@ -191,7 +180,11 @@ volatile BaseType_t xPortScheduleStatus[ configNUMBER_OF_CORES ] = { 0 };
  * It is necessary to control maximum stack depth.
  */
 volatile UBaseType_t uxInterruptNesting[ configNUMBER_OF_CORES ] = { 0 };
-volatile const UBaseType_t uxPortMaxInterruptDepth = configMAX_INT_NESTING;
+
+#ifndef configPORT_ISR_STACK_TOPS
+#error "Define configPORT_ISR_STACK_TOPS in FreeRTOSConfig.h"
+#endif
+const UBaseType_t uxInterruptStack[ configNUMBER_OF_CORES ] = configPORT_ISR_STACK_TOPS;
 
 /* Count number of nested locks by same cores. The lock is completely released
  * only if this count is decreased to 0, the lock is separated for task and isr */
@@ -381,46 +374,32 @@ StackType_t * pxPortInitialiseStack( StackType_t * pxTopOfStack,
     pxTopOfStack--;
     *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R30; /* R30 (EP) */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R1;  /* R1        */
+    *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R1;  /* R1       */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R2;  /* R2        */
+    *pxTopOfStack = ( StackType_t ) portSTACK_INITIAL_VALUE_R2;  /* R2       */
 
     pxTopOfStack--;
+    
+    /* if FPU is enabled, initialize the FPU registers in Stack */
+    #if ( configDISABLE_FPU != 1 )
+    {
+        *pxTopOfStack = ( StackType_t ) ( portCURRENT_FPSR_VALUE & portINITIAL_FPSR_MASK ); /* FPSR  */
+        pxTopOfStack--;
+        *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                          /* FPEPC */
+        pxTopOfStack--;
+    }
+    #endif /* End of #if ( configDISABLE_FPU != 1 ) */
 
     /* Keep System pre-configuration (HV, CUx, EBV) as current setting in PSW register */
     *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MASK ); /* EIPSW */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) pxCode;                                           /* EIPC */
+    *pxTopOfStack = ( StackType_t ) pxCode;                                           /* EIPC  */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                        /* EIIC */
+    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                        /* EIIC  */
     pxTopOfStack--;
     *pxTopOfStack = ( StackType_t ) ( portCURRENT_PSW_VALUE & portINITIAL_PSW_MASK ); /* CTPSW */
     pxTopOfStack--;
-    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                        /* CTPC */
-
-    /* if FPU is enabled, initialize the FPU registers in Stack */
-    #if ( configENABLE_FPU == 1 )
-        pxTopOfStack--;
-        *pxTopOfStack = ( StackType_t ) ( portCURRENT_FPSR_VALUE & portINITIAL_FPSR_MASK ); /* FPSR */
-        pxTopOfStack--;
-        *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                          /* FPEPC */
-    #endif /* (configENABLE_FPU == 1) */
-
-    /* if FXU is enabled, initialize the FXU registers in Stack */
-    #if ( configENABLE_FXU == 1 )
-        /* FXU Unit is available in PE0 only */
-        if( 0 == xPortGET_CORE_ID() )
-        {
-            pxTopOfStack--;
-            *pxTopOfStack = ( StackType_t ) ( portCURRENT_FXSR_VALUE & portINITIAL_FXSR_MASK ); /* FXSR */
-            pxTopOfStack--;
-            *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                          /* FXXP */
-        }
-        else
-        {
-            /* Do nothing */
-        }
-    #endif /* (configENABLE_FXU == 1) */
+    *pxTopOfStack = ( StackType_t ) portCURRENT_SR_ZERO_VALUE;                        /* CTPC  */
 
     return pxTopOfStack;
 }
@@ -621,11 +600,11 @@ static void prvSetupTimerInterrupt( void )
 
     /* Interrupt configuration for OSTM Timer*/
     pulOSTMIntReg = ( volatile uint32_t * ) portOSTM_EIC_ADDR;
-    *pulOSTMIntReg = ( portINT_TABLE_VECTOR | configTIMER_INT_PRIORITY );
+    *pulOSTMIntReg = ( portINT_DIRECT_VECTOR | configTIMER_INT_PRIORITY );
 
     /* Set OSTM0 control setting */
     *( ( volatile uint32_t * ) portOSTMCTL_ADDR ) = ( portOSTM_INTERRUPT_ENABLE | portOSTM_MODE_INTERVAL_TIMER | portOSTM_START_INTERRUPT_DISABLE );
-    *( ( volatile uint32_t * ) portOSTMCMP_ADDR ) = ( ( configCPU_CLOCK_HZ / configTICK_RATE_HZ ) ) - 1;
+    *( ( volatile uint32_t * ) portOSTMCMP_ADDR ) = ( ( configCPU_CLOCK_HZ / configTICK_RATE_HZ ) - 1 );
 
     /* Enable OSTM0 operation */
     *( ( volatile uint32_t * ) portOSTMTS_ADDR ) = portOSTM_COUNTER_START;
@@ -646,12 +625,14 @@ static void prvSetupTimerInterrupt( void )
         /* No problem with r20, CCRH does not required to restore same value
          * before and after function call. */
         push r20
-            mov     # __s.mev_address.bss, r20
+        mov     # __s.mev_address.bss, r20
+
         /* r6 is xBitPosition */
 Lock:   set1 r6, [ r20 ]
         bz Lock_success
         snooze
         br Lock
+
 Lock_success:
         pop r20
     }
@@ -662,7 +643,8 @@ Lock_success:
     static void prvExclusiveRelease( BaseType_t xBitPosition )
     {
         push r20
-            mov     # __s.mev_address.bss, r20
+        mov     # __s.mev_address.bss, r20
+
         /* r6 is xBitPosition */
         clr1 r6, [ r20 ]
         pop r20

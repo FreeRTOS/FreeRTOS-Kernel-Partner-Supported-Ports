@@ -18,11 +18,12 @@ This repository contains the port of FreeRTOS for Renesas RH850/U2x microcontrol
 
 ## Link to Test Project
 
-The test project can be found in [RH850_U2Ax_CCRH](https://github.com/FreeRTOS/FreeRTOS-Partner-Supported-Demos/tree/main/RH850_U2Ax_CCRH) and [RH850_U2Bx_CCRH](https://github.com/FreeRTOS/FreeRTOS-Partner-Supported-Demos/tree/main/RH850_U2Bx_CCRH). These projects contain example tasks and configurations to help you get started with FreeRTOS on the RH850/U2Ax and U2Bx.
+The test project can be found in [RH850_U2Ax_CCRH](https://github.com/FreeRTOS/FreeRTOS-Partner-Supported-Demos/tree/main/RH850_U2Ax_CCRH) and [RH850_U2Bx_CCRH](https://github.com/FreeRTOS/FreeRTOS-Partner-Supported-Demos/tree/main/RH850_U2Bx_CCRH). These projects contain example tasks and configurations to help you get started with FreeRTOS on the RH850/U2Ax and RH850/U2Bx.
 
 ## Note
-   1. The minimal stack size (configMINIMAL_STACK_SIZE) must be included the reserved memory for nested interrupt. This formula can be referred: `(task_context_size) * (2 + configMAX_INT_NESTING) + Stack_depth_of_taskcode`
-   In which, `task_context_size` is calculated as `36*4bytes = 144bytes` (when FPU enabled) or `34*4bytes = 136` (when FPU disabled), configMAX_INT_NESTING is `02` as default (Note that a value of `0` is not allowed).
+   1. The minimal stack size `configMINIMAL_STACK_SIZE` must be included the reserved memory for nested interrupt. This formula can be referred: `[(task_context_size) * 2] + Stack_depth_of_taskcode`.
+   In which, `task_context_size` is calculated as `36*4bytes = 144bytes`.
+
    2. Users need to create a memory section named `mev_address` in `CRAM` for Exclusive Control functionality. Users should initialize the `mev_address` section in the startup file.
 
 Example:
@@ -32,12 +33,11 @@ Example:
   st.w    r0, 0[r20]
    ```
    3. The `FXU unit` is only available on `core 0`. Users must ensure that FXU operations are restricted to `core 0` by using the `vTaskCoreAffinitySet` function provided by FreeRTOS SMP.
-   4. FXU can be enabled by specific compiler option `-DconfigENABLE_FXU`. FPU can be enabled by specific compiler option `-DconfigENABLE_FPU`
-   5. The macros `configENABLE_FXU` and `configENABLE_FPU` must be defined in `FreeRTOSConfig.h`.
+   4. FXU can be enabled by specific compiler option `-DconfigDISABLE_FXU`. FPU can be enabled by specific compiler option `-DconfigDISABLE_FPU`
+   5. The macros `configDISABLE_FXU` and `configDISABLE_FPU` must be defined in `FreeRTOSConfig.h`.
    6. This port supports U2Ax and U2Bx devices. The user must configure `configDEVICE_NAME` with the value `U2Bx_DEVICES` or `U2Ax_DEVICES` to specify which device is being used.
    7. The User can configure the interrupt priority of the OSTM Timer using `configTIMER_INT_PRIORITY`, with 16 levels available (0 being the highest priority and 15 the lowest).
    8. This port also supports the configuration of contiguous CPU cores in FreeRTOS, allowing the user to set task affinity for execution on specific cores or subsets of cores.
-
 
 ## Other Relevant Information
 

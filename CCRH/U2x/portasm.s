@@ -31,17 +31,16 @@
 ; Extern symbols
 ;------------------------------------------------------------------------------
 .extern _uxInterruptNesting
-.extern _uxPortMaxInterruptDepth
 .extern _xPortScheduleStatus
 .extern _vTaskSwitchContext
 .extern _pvPortGetCurrentTCB
-.extern _vCommonISRHandler
 .extern _xPortGET_CORE_ID
 
 .public _vIrq_Handler
 .public _vPortStartFirstTask
 .public _vPortYield
 .public _vTRAP0_Handler
+
 ;------------------------------------------------------------------------------
 ; Macro definitions
 ;------------------------------------------------------------------------------
@@ -56,6 +55,8 @@ EIIC  .set 13
 CTPC  .set 16
 CTPSW .set 17
 EIIC_MSK .set 0x00000FFF
+FPU_MSK  .set 0x00010000
+FXU_MSK  .set 0x00020000
 
 ;------------------------------------------------------------------------------
 ; portSAVE_CONTEXT
@@ -71,31 +72,25 @@ portSAVE_CONTEXT .macro
     $warning
 
     stsr    EIPSW, r15
+
+    ; Save FPU registers to stack if FPU is enabled
+    ; If disable, skip next 2 instructions: stsr (4 bytes)*2 with dummy save.
+    $ifdef configDISABLE_FPU
+    mov     FPU_MSK, r19
+    tst     r15, r19
+    bz      10
+
+    stsr    FPSR, r18
+    stsr    FPEPC, r19
+    pushsp  r18, r19         ; Push dummy value if FPU disabled.
+    $endif
+
+    stsr    EIPSW, r15
     stsr    EIPC, r16
     stsr    EIIC, r17
     stsr    CTPSW, r18
     stsr    CTPC, r19
     pushsp  r15, r19
-
-    ; Save FPU registers to stack if FPU is enabled
-    $ifdef configENABLE_FPU
-    stsr    FPSR, r18
-    stsr    FPEPC, r19
-    pushsp  r18, r19
-    $endif
-
-    ; Save FXU registers to stack if FXU is enabled
-    $ifdef configENABLE_FXU
-    mov     r0, r20
-    mov     r0, r21
-    stsr    0, r19, 2       ; Get PEID
-    cmp     r19, r0         ; Confirm PEID value is PE0
-    bne     8               ; Branch 2 instructions if is not PE0
-                            ; to avoid unprivileged access
-    stsr    FXSR, r20, 10   ; If PE0, save FXU register
-    stsr    FXXP, r21, 10   ; If PE0, save FXU register
-    pushsp  r20, r21
-    $endif
 
     ; Get current TCB, the return value is stored in r10 (CCRH compiler)
     jarl    _pvPortGetCurrentTCB, lp
@@ -112,24 +107,6 @@ portRESTORE_CONTEXT .macro
     jarl    _pvPortGetCurrentTCB, lp
     ld.w    0[r10], sp                  ; Restore the stack pointer from the TCB
 
-    ; Restore FXU registers if FXU is enabled
-    $ifdef configENABLE_FXU
-    popsp   r20, r21
-    stsr    0, r19, 2       ; Get PEID
-    cmp     r19, r0         ; Confirm PEID value is PE0
-    bne     8               ; Branch 2 instructions if is not PE0
-                            ; to avoid unprivileged access
-    ldsr    r21, FXXP, 10   ; If PE0, restore FXU register
-    ldsr    r20, FXSR, 10   ; If PE0, restore FXU register
-    $endif
-
-    ; Restore FPU registers if FPU is enabled
-    $ifdef configENABLE_FPU
-    popsp   r18, r19
-    ldsr    r19, FPEPC
-    ldsr    r18, FPSR
-    $endif
-
     ;Restore general-purpose registers and EIPSW, EIPC, EIIC, CTPSW, CTPC
     popsp   r15, r19
     ldsr    r19, CTPC
@@ -137,6 +114,16 @@ portRESTORE_CONTEXT .macro
     ldsr    r17, EIIC
     ldsr    r16, EIPC
     ldsr    r15, EIPSW
+
+    ; Restore FPU registers if FPU is enabled
+    $ifdef configDISABLE_FPU
+    popsp   r18, r19
+    mov     FPU_MSK, r17
+    tst     r15, r17
+    bz      10
+    ldsr    r19, FPEPC
+    ldsr    r18, FPSR
+    $endif
 
     $nowarning
     popsp   r1, r2
@@ -154,74 +141,76 @@ SAVE_REGISTER .macro
     ; Callee-Save registers (r20 to r30) are not used in interrupt handler and
     ; guaranteed no change after function call. So, do not need to save register
     ; to optimize the used stack memory.
-    pushsp  r5, r21
+    pushsp  r5, r19
     $nowarning
     pushsp  r1, r2
     $warning
 
-    stsr    EIPSW, r19
-    stsr    EIPC, r18
-    stsr    EIIC, r17
-    mov     lp, r16
-    mov     ep, r15
-    stsr    CTPSW, r14
-    stsr    CTPC, r13
-    pushsp  r13, r19
+    stsr    EIPSW, r15
 
-    $ifdef configENABLE_FPU
+    $ifdef configDISABLE_FPU
+    mov     FPU_MSK, r19
+    tst     r15, r19
+    bz      10
     stsr    FPSR, r18
     stsr    FPEPC, r19
-    pushsp  r18, r19
+    pushsp  r18, r19         ; Push dummy value if FPU disabled.
     $endif
 
-    ; Save FXU registers to stack if FXU is enabled
-    $ifdef configENABLE_FXU
-    mov     r0, r20
-    mov     r0, r21
-    stsr    0, r19, 2       ; Get PEID
-    cmp     r19, r0         ; Confirm PEID value is PE0
-    bne     8               ; Branch 2 instructions if is not PE0
-                            ; to avoid unprivileged access
-    stsr    FXSR, r20, 10   ; If PE0, save FXU register
-    stsr    FXXP, r21, 10   ; If PE0, save FXU register
-    pushsp  r20, r21
+    $ifdef configDISABLE_FXU
+    mov     FXU_MSK, r19
+    tst     r15, r19
+    bz      10
+    stsr    FXSR, r18, 10
+    stsr    FXXP, r19, 10
+    pushsp  r18, r19         ; Push dummy value if FXU disabled.
     $endif
+
+    mov     ep, r13
+    mov     lp, r14
+    stsr    EIPSW, r15
+    stsr    EIPC, r16
+    stsr    EIIC, r17
+    stsr    CTPSW, r18
+    stsr    CTPC, r19
+    pushsp  r13, r19
 
 .endm
 ;------------------------------------------------------------------------------
 ; Restore used registers
 ;------------------------------------------------------------------------------
 RESTORE_REGISTER .macro
-    ; Restore FXU registers if FXU is enabled
-    $ifdef configENABLE_FXU
-    popsp   r20, r21
-    stsr    0, r19, 2       ; Get PEID
-    cmp     r19, r0         ; Confirm PEID value is PE0
-    bne     8               ; Branch 2 instructions if is not PE0
-                            ; to avoid unprivileged access
-    ldsr    r21, FXXP, 10   ; If PE0, restore FXU register
-    ldsr    r20, FXSR, 10   ; If PE0, restore FXU register
+    popsp   r13, r19
+    ldsr    r19, CTPC
+    ldsr    r18, CTPSW
+    ldsr    r17, EIIC
+    ldsr    r16, EIPC
+    ldsr    r15, EIPSW
+    mov     r14, lp
+    mov     r13, ep
+    
+    $ifdef configDISABLE_FXU
+    popsp   r18, r19
+    mov     FXU_MSK, r17
+    tst     r15, r17
+    bz      10
+    ldsr    r19, FXXP, 10
+    ldsr    r18, FXSR, 10
     $endif
 
-    $ifdef configENABLE_FPU
+    $ifdef configDISABLE_FPU
     popsp   r18, r19
+    mov     FPU_MSK, r17
+    tst     r15, r17
+    bz      10
     ldsr    r19, FPEPC
     ldsr    r18, FPSR
     $endif
 
-    popsp   r13, r19
-    ldsr    r13, CTPC
-    ldsr    r14, CTPSW
-    mov     r15, ep
-    mov     r16, lp
-    ldsr    r17, EIIC
-    ldsr    r18, EIPC
-    ldsr    r19, EIPSW
-
     $nowarning
     popsp   r1, r2
     $warning
-    popsp   r5, r21
+    popsp   r5, r19
 .endm
 
 ;------------------------------------------------------------------------------
@@ -300,29 +289,43 @@ _vIrq_Handler:
     addi    0x1, r18, r16
     st.w    r16, 0[r19]
 
-    pushsp  r17, r19
+    ; Check and switch to interrupt stack if task stack is currently used. 
+    cmp     r0, r18
+    bne     _vIrq_Handler_Entry_End
+    mov     #_uxInterruptStack, r14
+    add     r17, r14
+    ld.w    0[r14], r14
+    mov     sp, r16
+    mov     r14, sp
 
-    ;Call the interrupt handler.
+_vIrq_Handler_Entry_End:
+    pushsp  r16, r19
+
+    ; Call the interrupt handler.
     stsr    EIIC, r6
     andi    EIIC_MSK, r6, r6
 
-    ; Do not enable interrupt for nesting. Stackover flow may occurs if the
-    ; depth of nesting interrupt is exceeded.
-    mov     #_uxPortMaxInterruptDepth, r19
-    ld.w    0[r19], r15
-    cmp     r15, r16
-    bge      4                                 ; Jump over ei instruction
+    ; Enable nested interrupts, invoke ISR functions from reference table
     ei
-    jarl    _vCommonISRHandler, lp
+    stsr    4, r16, 1 ; Load based address of Interrupt Reference Table
+    andi    0xfff, r6, r17
+    shl     2, r17
+    add     r17, r16
+    ld.w    0[r16], r16
+    
+    ; Invoke registered ISR function
+    jarl    [r16], lp
+    
     di
     synce
 
-    popsp   r17, r19
+    popsp   r16, r19
     st.w    r18, 0[r19]                  ; Restore the old nesting count.
 
     ; A context switch if no nesting interrupt.
     cmp     0x0, r18
     bne     _vIrq_Handler_NotSwitchContext
+    mov     r16, sp                      ; Restore to task stack.
 
     ; Check if context switch is requested.
     mov     #_xPortScheduleStatus, r19
@@ -332,7 +335,7 @@ _vIrq_Handler:
     bne     _vIrq_Handler_SwitchContext
 
 _vIrq_Handler_NotSwitchContext:
-    ; No context switch.  Restore used registers
+    ; No context switch. Return to caller and exit interrupt
     RESTORE_REGISTER
     eiret
 
@@ -353,7 +356,7 @@ _vIrq_Handler_SwitchContext:
     mov     r10, r6
 
     ; vPortYeild may be called to current core again at the end of vTaskSwitchContext.
-    ; This may case nested interrupt, however, it is not necessary to set
+    ; This may cause nested interrupt, however, it is not necessary to set
     ; uxInterruptNesting (currently 0) for  trap0 exception. The user interrupt
     ; (EI level interrupt) is not accepted inside of trap0 exception.
     jarl    _vTaskSwitchContext, lp
@@ -361,6 +364,7 @@ _vIrq_Handler_SwitchContext:
     eiret
 
 _vIrq_Handler_StartFirstTask:
+    ; The stack is switch to task stack when starting the first task
+    ; Save address of interrupt stack
     RESTORE_REGISTER
     jr _vPortStartFirstTask
-
