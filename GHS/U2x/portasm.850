@@ -26,10 +26,8 @@
 -- *
 -- */
 
-#include "FreeRTOSConfig.h"
-
 -------------------------------------------------------------------------------
--- Extern symbols
+-- Extern symbols.
 -------------------------------------------------------------------------------
 .extern _uxInterruptNesting
 .extern _xPortScheduleStatus
@@ -43,24 +41,25 @@
 .global _vTRAP0_Handler
 
 --------------------------------------------------------------------------------
--- Macro definitions
+-- Macro definitions.
 --------------------------------------------------------------------------------
-.set EIPC,   0
-.set EIPSW,  1
-.set PSW,    5
-.set FPSR,   6
-.set FPEPC,  7
-.set FXSR,   6
-.set FXXP,   13
-.set EIIC,   13
-.set CTPC,   16
-.set CTPSW,  17
+.set EIPC,      0
+.set EIPSW,     1
+.set PSW,       5
+.set FPSR,      6
+.set FPEPC,     7
+.set FXSR,      6
+.set FXXP,      13
+.set EIIC,      13
+.set CTPC,      16
+.set CTPSW,     17
 .set EIIC_MSK,  0x00000FFF
-.set FPU_MSK  0x00010000
-.set FXU_MSK  0x00020000
+.set FPU_MSK,   0x00010000
+.set FXU_MSK,   0x00020000
+
 --------------------------------------------------------------------------------
 -- portSAVE_CONTEXT
--- Context saving
+-- Context saving.
 --------------------------------------------------------------------------------
 .macro portSAVE_CONTEXT
     prepare {lp}, 0
@@ -72,9 +71,9 @@
     --$warning
 
     stsr    EIPSW, r15
-    -- Save FPU registers to stack if they are enabled
+    -- Save FPU registers to stack if they are enabled.
     -- If disable, skip next 2 instructions: stsr (4 bytes)*2 with dummy save.
-    #if (0 == configDISABLE_FPU)
+    #ifndef configDISABLE_FPU
     mov     FPU_MSK, r19
     tst     r15, r19
     bz      10
@@ -90,21 +89,21 @@
     stsr    CTPC, r19
     pushsp  r15-r19
 
-    -- Get current TCB, the return value is stored in r10
+    -- Get current TCB, the return value is stored in r10.
     jarl    _pvPortGetCurrentTCB, lp
     st.w    sp, 0[r10]
 .endm
 
 --------------------------------------------------------------------------------
 -- portRESTORE_CONTEXT
--- Context restoring
+-- Context restoring.
 --------------------------------------------------------------------------------
 .macro portRESTORE_CONTEXT
-    -- Current TCB is returned by r10
+    -- Current TCB is returned by r10.
     jarl    _pvPortGetCurrentTCB, lp
-    ld.w    0[r10], sp                  -- Restore the stack pointer from the TCB
+    ld.w    0[r10], sp      -- Restore the stack pointer from the TCB.
 
-    -- Restore general-purpose registers and EIPSW, EIPC, EIIC, CTPSW, CTPC
+    -- Restore general-purpose registers and EIPSW, EIPC, EIIC, CTPSW, CTPC.
     popsp   r15-r19
     ldsr    r19, CTPC
     ldsr    r18, CTPSW
@@ -112,8 +111,8 @@
     ldsr    r16, EIPC
     ldsr    r15, EIPSW
 
-    -- Restore FPU registers if FPU is enabled
-    #if (0 == configDISABLE_FPU)
+    -- Restore FPU registers if FPU is enabled.
+    #ifndef configDISABLE_FPU
     popsp   r18-r19
     mov     FPU_MSK, r17
     tst     r15, r17
@@ -131,7 +130,7 @@
 .endm
 
 --------------------------------------------------------------------------------
--- Save used registers
+-- Save used registers.
 --------------------------------------------------------------------------------
 .macro SAVE_REGISTER
     pushsp  r5-r19
@@ -141,7 +140,7 @@
 
     stsr    EIPSW, r15
 
-    #if (0 == configDISABLE_FPU)
+    #ifndef configDISABLE_FPU
     mov     FPU_MSK, r19
     tst     r15, r19
     bz      10
@@ -150,8 +149,8 @@
     pushsp  r18-r19         -- Push dummy value if FPU disabled.
     #endif
 
-    -- Save FXU registers to stack if FXU is enabled
-    #if (0 == configDISABLE_FXU)
+    -- Save FXU registers to stack if FXU is enabled.
+    #ifndef configDISABLE_FXU
     mov     FXU_MSK, r19
     tst     r15, r19
     bz      10
@@ -171,7 +170,7 @@
 
 .endm
 --------------------------------------------------------------------------------
--- Restore used registers
+-- Restore used registers.
 --------------------------------------------------------------------------------
 .macro RESTORE_REGISTER
     popsp   r13-r19
@@ -183,8 +182,8 @@
     mov     r14, lp
     mov     r13, ep
 
-    -- Restore FXU registers if FXU is enabled
-    #if (0 == configDISABLE_FXU)
+    -- Restore FXU registers if FXU is enabled.
+    #ifndef configDISABLE_FXU
     popsp   r18-r19
     mov     FXU_MSK, r17
     tst     r15, r17
@@ -193,8 +192,8 @@
     ldsr    r18, FXSR, 10
     #endif
 
-    -- Restore FPU registers if FPU is enabled
-    #if (0 == configDISABLE_FPU)
+    -- Restore FPU registers if FPU is enabled.
+    #ifndef configDISABLE_FPU
     popsp   r18-r19
     mov     FPU_MSK, r17
     tst     r15, r17
@@ -221,7 +220,7 @@ _vPortStartFirstTask:
 --------------------------------------------------------------------------------
 _vPortYield:
     trap    0
-    jmp     [lp]                        -- Return to caller function
+    jmp     [lp]            -- Return to caller function.
 
 --------------------------------------------------------------------------------
 -- PortYield handler. This is installed as the TRAP exception handler.
@@ -233,7 +232,7 @@ _vTRAP0_Handler:
     -- The use case that portYield() is called from interrupt context as nested interrupt.
     -- Context switch should be executed at the most outer of interrupt tree.
     -- In that case, set xPortScheduleStatus to flag context switch in interrupt handler.
-    jarl    _xPortGET_CORE_ID, lp -- return value is contained in r10
+    jarl    _xPortGET_CORE_ID, lp       -- return value is contained in r10.
     mov     r10, r11
     shl     2, r11
     mov     _uxInterruptNesting, r19
@@ -273,9 +272,9 @@ _vIrq_Handler:
     -- Save used registers.
     SAVE_REGISTER
 
-    -- Get core ID by HTCFG0, thread configuration register.
+    -- Get core ID by PEID, thread configuration register.
     -- Then, increase nesting count for current core.
-    jarl    _xPortGET_CORE_ID, lp -- return value is contained in r10
+    jarl    _xPortGET_CORE_ID, lp       -- return value is contained in r10.
     mov     r10, r17
     shl     2, r17
 
@@ -285,7 +284,7 @@ _vIrq_Handler:
     addi    0x1, r18, r16
     st.w    r16, 0[r19]
 
-    -- Check and switch to interrupt stack if task stack is currently used. 
+    -- Check and switch to interrupt stack if task stack is currently used.
     cmp     r0, r18
     bne     _vIrq_Handler_Entry_End
     mov     _uxInterruptStack, r14
@@ -301,27 +300,27 @@ _vIrq_Handler_Entry_End:
     stsr    EIIC, r6
     andi    EIIC_MSK, r6, r6
 
-    -- Enable nested interrupts, invoke ISR functions from reference table
+    -- Enable nested interrupts, invoke ISR functions from reference table.
     ei
-    stsr    4, r16, 1 -- Load based address of Interrupt Reference Table
+    stsr    4, r16, 1       -- Load based address of Interrupt Reference Table.
     andi    0xfff, r6, r17
     shl     2, r17
     add     r17, r16
     ld.w    0[r16], r16
 
-    -- Invoke registered ISR function
+    -- Invoke registered ISR function.
     jarl    [r16], lp
 
     di
     synce
 
     popsp   r16-r19
-    st.w    r18, 0[r19]                  -- Restore the old nesting count.
+    st.w    r18, 0[r19]     -- Restore the old nesting count.
 
     -- A context switch if no nesting interrupt.
     cmp     0x0, r18
     bne     _vIrq_Handler_NotSwitchContext
-    mov     r16, sp                      -- Restore to task stack.
+    mov     r16, sp         -- Restore to task stack.
 
     -- Check if context switch is requested.
     mov     _xPortScheduleStatus, r19
@@ -331,11 +330,11 @@ _vIrq_Handler_Entry_End:
     bne     _vIrq_Handler_SwitchContext
 
 _vIrq_Handler_NotSwitchContext:
-    -- No context switch. Return to caller and exit interrupt
+    -- No context switch. Return to caller and exit interrupt.
     RESTORE_REGISTER
     eiret
 
--- This sequence is executed for primary core only to switch context
+-- This sequence is executed for primary core only to switch context.
 _vIrq_Handler_SwitchContext:
     -- Clear the context switch pending flag.
     st.w r0, 0[r19]
@@ -346,9 +345,9 @@ _vIrq_Handler_SwitchContext:
     RESTORE_REGISTER
     portSAVE_CONTEXT
 
-    -- Get Core ID and pass to vTaskSwitchContext as parameter
-    -- The parameter is  unused in single core, no problem with this redudant setting
-    jarl    _xPortGET_CORE_ID, lp -- return value is contained in r10
+    -- Get Core ID and pass to vTaskSwitchContext as parameter.
+    -- The parameter is  unused in single core, no problem with this redudant setting.
+    jarl    _xPortGET_CORE_ID, lp       -- return value is contained in r10.
     mov     r10, r6
 
     -- vPortYeild may be called to current core again at the end of vTaskSwitchContext.
@@ -360,7 +359,7 @@ _vIrq_Handler_SwitchContext:
     eiret
 
 _vIrq_Handler_StartFirstTask:
-    -- The stack is switch to task stack when starting the first task
-    -- Save address of interrupt stack
+    -- The stack is switch to task stack when starting the first task.
+    -- Save address of interrupt stack.
     RESTORE_REGISTER
     jr _vPortStartFirstTask

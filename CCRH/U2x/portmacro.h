@@ -82,22 +82,22 @@
     #define portSYNCM()                  __syncm()
 
 /* Specify 16 interrupt priority levels */
-    #define portINT_PRIORITY_HIGHEST    ( 0x0000U )         /* Level 0 (highest) */
-    #define portINT_PRIORITY_LEVEL1     ( 0x0001U )         /* Level 1 */
-    #define portINT_PRIORITY_LEVEL2     ( 0x0002U )         /* Level 2 */
-    #define portINT_PRIORITY_LEVEL3     ( 0x0003U )         /* Level 3 */
-    #define portINT_PRIORITY_LEVEL4     ( 0x0004U )         /* Level 4 */
-    #define portINT_PRIORITY_LEVEL5     ( 0x0005U )         /* Level 5 */
-    #define portINT_PRIORITY_LEVEL6     ( 0x0006U )         /* Level 6 */
-    #define portINT_PRIORITY_LEVEL7     ( 0x0007U )         /* Level 7 */
-    #define portINT_PRIORITY_LEVEL8     ( 0x0008U )         /* Level 8 */
-    #define portINT_PRIORITY_LEVEL9     ( 0x0009U )         /* Level 9 */
-    #define portINT_PRIORITY_LEVEL10    ( 0x000AU )         /* Level 10 */
-    #define portINT_PRIORITY_LEVEL11    ( 0x000BU )         /* Level 11 */
-    #define portINT_PRIORITY_LEVEL12    ( 0x000CU )         /* Level 12 */
-    #define portINT_PRIORITY_LEVEL13    ( 0x000DU )         /* Level 13 */
-    #define portINT_PRIORITY_LEVEL14    ( 0x000EU )         /* Level 14 */
-    #define portINT_PRIORITY_LOWEST     ( 0x000FU )         /* Level 15 (lowest) */
+    #define portINT_PRIORITY_HIGHEST    ( 0x0000U ) /* Level 0 (highest) */
+    #define portINT_PRIORITY_LEVEL1     ( 0x0001U ) /* Level 1 */
+    #define portINT_PRIORITY_LEVEL2     ( 0x0002U ) /* Level 2 */
+    #define portINT_PRIORITY_LEVEL3     ( 0x0003U ) /* Level 3 */
+    #define portINT_PRIORITY_LEVEL4     ( 0x0004U ) /* Level 4 */
+    #define portINT_PRIORITY_LEVEL5     ( 0x0005U ) /* Level 5 */
+    #define portINT_PRIORITY_LEVEL6     ( 0x0006U ) /* Level 6 */
+    #define portINT_PRIORITY_LEVEL7     ( 0x0007U ) /* Level 7 */
+    #define portINT_PRIORITY_LEVEL8     ( 0x0008U ) /* Level 8 */
+    #define portINT_PRIORITY_LEVEL9     ( 0x0009U ) /* Level 9 */
+    #define portINT_PRIORITY_LEVEL10    ( 0x000AU ) /* Level 10 */
+    #define portINT_PRIORITY_LEVEL11    ( 0x000BU ) /* Level 11 */
+    #define portINT_PRIORITY_LEVEL12    ( 0x000CU ) /* Level 12 */
+    #define portINT_PRIORITY_LEVEL13    ( 0x000DU ) /* Level 13 */
+    #define portINT_PRIORITY_LEVEL14    ( 0x000EU ) /* Level 14 */
+    #define portINT_PRIORITY_LOWEST     ( 0x000FU ) /* Level 15 (lowest) */
 
 /* Determine the descending of the stack from high address to address */
     #define portSTACK_GROWTH            ( -1 )
@@ -162,8 +162,10 @@
         #define portGET_TASK_LOCK( xCoreID )
         #define portRELEASE_TASK_LOCK( xCoreID )
     #else
-        extern void vPortRecursiveLockAcquire( BaseType_t xCoreID, BaseType_t xFromIsr );
-        extern void vPortRecursiveLockRelease( BaseType_t xCoreID, BaseType_t xFromIsr );
+        extern void vPortRecursiveLockAcquire( BaseType_t xCoreID,
+                                               BaseType_t xFromIsr );
+        extern void vPortRecursiveLockRelease( BaseType_t xCoreID,
+                                               BaseType_t xFromIsr );
 
         #define portGET_ISR_LOCK( xCoreID )         vPortRecursiveLockAcquire( ( xCoreID ), pdTRUE )
         #define portRELEASE_ISR_LOCK( xCoreID )     vPortRecursiveLockRelease( ( xCoreID ), pdTRUE )
@@ -204,6 +206,6 @@
 /*-----------------------------------------------------------*/
 
     #ifdef __cplusplus
-}
+    }
     #endif
 #endif /* PORTMACRO_H */
