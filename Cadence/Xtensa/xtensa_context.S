@@ -143,9 +143,14 @@ _xt_context_save:
     s32i    a3,  sp, XT_STK_LBEG
     rsr     a3,  LEND
     s32i    a3,  sp, XT_STK_LEND
-    rsr     a3,  LCOUNT
+    movi    a3,  0
+    #if (defined XT_USE_OVLY) && (defined XT_OV_SCRATCH) && (XT_OV_SCRATCH == LCOUNT)
+    rsr     a3,  LCOUNT                 /* preserve LCOUNT for overlay store logic */
+    #else
+    xsr     a3,  LCOUNT                 /* clear LCOUNT to prevent looping in ISR */
+    #endif // XT_USE_OVLY
     s32i    a3,  sp, XT_STK_LCOUNT
-    #endif
+    #endif // XCHAL_HAVE_LOOPS
 
     #if XCHAL_HAVE_EXCLUSIVE
     /* Save and clear state of ATOMCTL */
@@ -186,10 +191,15 @@ _xt_context_save:
     _xt_overlay_get_state    a9, a12, a13
     s32i    a9,  sp, XT_STK_OVLY        /* save overlay state */
     #if (defined XT_OV_SCRATCH)         /* In newer liboverlay versions */
+    #if (XT_OV_SCRATCH == LCOUNT)
+    movi    a9,  0                      /* clear LCOUNT to prevent looping in ISR */
+    xsr     a9,  XT_OV_SCRATCH          /* save XT_OV_SCRATCH/LCOUNT register */
+    #else
     rsr     a9,  XT_OV_SCRATCH          /* save XT_OV_SCRATCH register */
+    #endif // XT_OV_SCRATCH == LCOUNT
     s32i    a9,  sp, XT_STK_OVLY_SCRATCH
-    #endif
-    #endif
+    #endif // XT_OV_SCRATCH
+    #endif // XT_USE_OVLY
 
     l32i    a12, sp, XT_STK_A12         /* recover original a9,12,13 */
     l32i    a13, sp, XT_STK_A13

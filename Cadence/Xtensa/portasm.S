@@ -353,6 +353,12 @@ _frxt_dispatch:
 skip_lowering_priv:
 #endif
 
+    #if XCHAL_HAVE_LOOPS
+    /* LCOUNT was not saved upon solicited yield; clear it to a known state */
+    movi    a3,  0
+    wsr     a3,  LCOUNT
+    #endif
+
     l32i    a3,  sp, XT_STK_PS
     #ifdef __XTENSA_CALL0_ABI__
     l32i    a12, sp, XT_STK_A12
@@ -660,6 +666,12 @@ _xt_task_start:
 #if XCHAL_CP_NUM > 0
     movi    a0, 0
     wsr     a0, CPENABLE                    /* disable all coprocessors */
+#endif
+#if XCHAL_HAVE_LOOPS
+    #if XCHAL_CP_NUM == 0
+    movi    a0,  0                          /* skip if (a0 <- 0) by above loop logic */
+    #endif
+    wsr     a0,  LCOUNT                     /* ensure loops are disabled */
 #endif
 
 #if XCHAL_HAVE_XEA3
