@@ -30,9 +30,9 @@ ifeq ($(OVERLAY),1)
 OVLYFLAGS   = -DXT_USE_THREAD_SAFE_CLIB=1 -DXT_USE_OVLY=1
 endif
 
-# Build with SMP support
-ifeq ($(SMP),1)
-SMPFLAGS    = -DPROFILE_CONTEXT_SWITCH -DSMP_TEST
+# Build without SMP support
+ifeq ($(SMP),0)
+SMPFLAGS    = -DconfigNUMBER_OF_CORES=1
 endif
 
 SRCROOT     = $(subst /,$(S),$(CURDIR))
@@ -93,7 +93,10 @@ endif
 WFLAGS      = -Werror -Wall -Wextra
 CFGFLAGS   ?= 
 CCFLAGS     = $(CSTD) $(CFGFLAGS) $(CFLAGS) $(WFLAGS) -mno-coproc -mlongcalls -ffunction-sections -mno-l32r-flix $(DFLAGS) $(MPUFLAGS) $(OVLYFLAGS) $(SMPFLAGS)
-ASFLAGS     = $(CCFLAGS)
+
+# Avoid LTO due to build issues related to inline assembly
+CCFLAGS_F   = $(filter-out -flto,$(CCFLAGS))
+ASFLAGS     = $(CCFLAGS_F)
 
 # File-specific flags
 
@@ -125,12 +128,12 @@ $(OSLIB) : $(LIB_O_LIST)
 	$(AR) -rs $@ $^
 
 $(BLDDIR)/asm-offsets.h : asm-offsets.c $(BLDDIR)/.mkdir
-	$(CC) $(CCFLAGS) $(IFLAGS) -MD -MF $(subst .h,.d,$@) -MT $@ -ffunction-sections -fdata-sections -Wl,--gc-sections -o $@.exe $< -lxtutil
+	$(CC) $(CCFLAGS_F) $(IFLAGS) -MD -MF $(subst .h,.d,$@) -MT $@ -ffunction-sections -fdata-sections -Wl,--gc-sections -o $@.exe $< -lxtutil
 	$(ISS) $@.exe > $@
 	$(RM) $(subst /,$(S),$@.exe)
 
 $(BLDDIR)/%.o : %.c $(BLDDIR)/.mkdir
-	$(CC) $(CCFLAGS) $(IFLAGS) $(FLAGS_$*) -mtext-section-literals -MD -MF $(subst .o,.d,$@) -c -o $@ $<
+	$(CC) $(CCFLAGS_F) $(IFLAGS) $(FLAGS_$*) -mtext-section-literals -MD -MF $(subst .o,.d,$@) -c -o $@ $<
 
 $(BLDDIR)/%.o : %.S $(BLDDIR)/.mkdir
 	$(CC) $(ASFLAGS) $(IFLAGS) $(FLAGS_$*) -MD -MF $(subst .o,.d,$@) -c -o $@ $<

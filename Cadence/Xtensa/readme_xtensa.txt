@@ -1,7 +1,7 @@
         FreeRTOS Port for Xtensa Configurable Processors
         ================================================
 
-                FreeRTOS Kernel Version 11.0.0
+                FreeRTOS Kernel Version 11.2.0
 
 
 Introduction
@@ -11,7 +11,7 @@ This document describes the Xtensa port for FreeRTOS multitasking RTOS.
 For an introduction to FreeRTOS itself, please refer to FreeRTOS
 documentation.
 
-This port currently works with FreeRTOS kernel version 11.0.0.
+This port currently works with FreeRTOS kernel version 11.2.0.
 
 
 Xtensa Configuration Requirements and Restrictions
@@ -782,18 +782,23 @@ Important information regarding Xtensa SMP support:
   2. 1 set of inter-processor interrupts (IPIs) <= EXCM_LEVEL
   3. Only coherent LX8 multicore configurations are supported at this time;
      as such, the exclusive access option is subsequently required
-  4. Unrelated to SMP, 1 timer per core <= EXCM_LEVEL and 
+  4. Unrelated to SMP, 1 timer per core <= EXCM_LEVEL and
      1 software interrupt per core <= EXCM_LEVEL are required
-  5. Xtensa C library (xclib) software support is required
 
-- SMP support requires Xtensa toolchain version RJ-2025.5 or newer.
+- SMP support requires Xtensa toolchain version RJ-2025.5-p1 or newer.
 
-- SMP mode is disabled by default for all configs.  SMP mode is enabled
-  by defining configNUMBER_OF_CORES > 1.  For the Xtensa Demo suite, this
-  setting is found in common/config_files/FreeRTOSConfig.h.
+- Starting with Xtensa port v3.13, SMP mode is enabled by default for LX/SMP
+  Xtensa configurations (where XCHAL_SUBSYS_NUM_CORES > 1), and is disabled
+  for all other configs.  SMP mode is enabled within the kernel by defining
+  configNUMBER_OF_CORES > 1.  For the Xtensa Demo suite, this setting is
+  found in common/config_files/FreeRTOSConfig.h, and can be enabled by
+  running "make SMP=1" in Cadence_Xtensa_ISS_xt-clang/.
 
 - SMP support relies on coherent shared memory being enabled prior to FreeRTOS
   initialization.  It is enabled by default in the LX8 multicore boot code.
+
+- SMP core power-shutoff (PSO) support is not standardized in FreeRTOS-Kernel.
+  Xtensa PSO support is described in Cadence_Xtensa_ISS_xt-clang/README.md.
 
 - MPU hardware support is required for the Xtensa coherence protocol to
   function, as all coherent memory regions must be configured as inner-
@@ -826,6 +831,18 @@ Important information regarding Xtensa SMP support:
   Therefore, registering an ISR on one core will result in the same handler
   being registered for that interrupt on all cores.  However, interrupts are
   still enabled and disabled on a per-core basis.
+
+- Xtensa-specific config option "XT_USE_L2RAM" moves data structures for timer,
+  scheduler, etc. to L2RAM instead of the default L2-cached system memory.
+  This can improve context switching performance.  L1 data cache ensures
+  coherence in both cases.  See xtensa_config.h for more details.  This option
+  is disabled by default.
+
+- Xtensa-specific config option "XT_USE_DATARAM" moves data structures for
+  interrupt dispatch and reentrancy to dataram instead of the default L2-cached
+  system memory.  This removes the need to index these structures per-core and
+  can improve performance.  See xtensa_config.h for more details.  This option
+  is disabled by default.
 
 
 -End-

@@ -1,3 +1,14 @@
+Notes for Version 3.13
+----------------------
+- FreeRTOS SMP support for newlib (experimental).
+- FreeRTOS SMP context switching performance improvements.
+- FreeRTOS SMP config option "XT_USE_L2RAM" moves data into L2RAM
+  for context switching performance improvements.  Disabled by default.
+- FreeRTOS SMP config option "XT_USE_DATARAM" moves per-core data into
+  dataram for performance improvements.  Disabled by default.
+- Based on FreeRTOS-Kernel V11.2.0 release in 3/2025.
+
+
 Notes for Version 3.12
 ----------------------
 

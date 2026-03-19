@@ -60,6 +60,13 @@ xt_unhandled_exception( XtExcFrame * frame )
 {
     (void) frame;
 #if ( configNUMBER_OF_CORES > 1 )
+    static int uexc_recursion_depth = 0;
+    if (++uexc_recursion_depth >= configNUMBER_OF_CORES) {
+        /* In the event that calling _exit() results in an unhandled 
+         * exception, stop the subsequent infinite loop.
+         */
+        while ( 1 );
+    }
     if (portGET_CORE_ID() > 0) {
         _exit( -1 );
     }
@@ -225,7 +232,7 @@ xt_interrupt_enable( uint32_t intnum )
     if ( intnum < (uint32_t) XCHAL_NUM_INTERRUPTS )
     {
         #if ( configNUMBER_OF_CORES > 1 )
-        xt_internal_data_t *intdatap = &(_xt_intdata[portGET_CORE_ID()]);
+        xt_internal_data_t *intdatap = &(_XT_INTDATA(portGET_CORE_ID()));
         #else
         xt_internal_data_t *intdatap = &_xt_intdata;
         #endif
@@ -254,7 +261,7 @@ xt_interrupt_disable( uint32_t intnum )
     if ( intnum < (uint32_t) XCHAL_NUM_INTERRUPTS )
     {
         #if ( configNUMBER_OF_CORES > 1 )
-        xt_internal_data_t *intdatap = &(_xt_intdata[portGET_CORE_ID()]);
+        xt_internal_data_t *intdatap = &(_XT_INTDATA(portGET_CORE_ID()));
         #else
         xt_internal_data_t *intdatap = &_xt_intdata;
         #endif
@@ -283,7 +290,7 @@ xt_interrupt_enabled( uint32_t intnum )
     if ( intnum < (uint32_t) XCHAL_NUM_INTERRUPTS )
     {
         #if ( configNUMBER_OF_CORES > 1 )
-        xt_internal_data_t *intdatap = &(_xt_intdata[portGET_CORE_ID()]);
+        xt_internal_data_t *intdatap = &(_XT_INTDATA(portGET_CORE_ID()));
         #else
         xt_internal_data_t *intdatap = &_xt_intdata;
         #endif

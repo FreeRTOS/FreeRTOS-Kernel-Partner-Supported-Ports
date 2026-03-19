@@ -427,8 +427,8 @@ _xt_panic:
     simcall
     #else
     rsil    a2, XT_IRQ_LOCK_LEVEL           /* disable all low & med ints */
-1:  j       1b                              /* loop infinitely */
     #endif
+1:  j       1b                              /* loop infinitely */
 
     .section    .rodata, "a"
     .align      4

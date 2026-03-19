@@ -214,7 +214,8 @@ BaseType_t xPortRaisePrivilege( void );
 #define portBYTE_ALIGNMENT              16
 #endif
 #define portNOP()                       XT_NOP()
-#define portMEMORY_BARRIER()            XT_MEMW()
+/* XT_MEMW() not required for generic C code memory barriers */
+#define portMEMORY_BARRIER()            __asm__ volatile ("" ::: "memory")
 /*-----------------------------------------------------------*/
 
 /* Multicore specifics. */
@@ -255,10 +256,6 @@ BaseType_t xPortRaisePrivilege( void );
     #error "SMP support requires at least one set of inter-processor interrupts (IPIs)"
 #endif
 
-#if XSHAL_CLIB != XTHAL_CLIB_XCLIB
-    #warning "SMP support highly recommends xclib for libc reentrancy
-#endif
-
 #if (XCHAL_INT_LEVEL(XCHAL_SUBSYS_IPI_S0C0_INTNUM) > XCHAL_EXCM_LEVEL)
 #error IPI S0C0 core interrupt is > XCHAL_EXCM_LEVEL
 #endif
@@ -289,6 +286,9 @@ BaseType_t xPortRaisePrivilege( void );
 #elif ( configTICK_CORE < 0 || configTICK_CORE >= configNUMBER_OF_CORES )
     #error "Invalid tick core specified in config!"
 #endif
+#if ( configUSE_CORE_AFFINITY == 1 )
+    #define configTIMER_SERVICE_TASK_CORE_AFFINITY  ( 1 << configTICK_CORE )
+#endif
 
     /* The Xtensa SMP port maintains an array of xt_internal_data_t structures,
      * which are padded to a cache line boundary.  This prevents cache thrashing
@@ -296,10 +296,11 @@ BaseType_t xPortRaisePrivilege( void );
      * are added, XT_PERCORE_DATA_SIZE must be adjusted accordingly.
      */
 #if (defined __DYNAMIC_REENT__)
-    #define XT_PERCORE_DATA_SIZE        (sizeof(UBaseType_t) + 20 + sizeof(struct _reent))
+    #define XT_PERCORE_REENT_DATA_SIZE  (8 + sizeof(struct _reent))
 #else
-    #define XT_PERCORE_DATA_SIZE        (sizeof(UBaseType_t) + 16)
+    #define XT_PERCORE_REENT_DATA_SIZE  0
 #endif
+    #define XT_PERCORE_DATA_SIZE        (sizeof(UBaseType_t) + 20 + XT_PERCORE_REENT_DATA_SIZE)
 
     typedef struct xt_internal_data {
         uint32_t port_interruptNesting;     // First field for asm efficiency
@@ -307,18 +308,24 @@ BaseType_t xPortRaisePrivilege( void );
         UBaseType_t uxCriticalNestings;
         uint32_t xt_intenable;
         uint32_t xt_vpri_mask;
+        uint32_t xt_core_init_done;
 #if (defined __DYNAMIC_REENT__)
         struct _reent *xt_reent_p;          // When xclib defines _reent_ptr()
+        void * xt_reent_pad_align;          // Ensure xt_reent is 16-byte aligned
         struct _reent xt_reent;
 #endif
+#if ( XT_USE_DATARAM == 0 )
         uint8_t  pad[XCHAL_DCACHE_LINESIZE -
                      (XT_PERCORE_DATA_SIZE & (XCHAL_DCACHE_LINESIZE - 1))];
+#endif
     } xt_internal_data_t;
 
     static_assert( offsetof(xt_internal_data_t, port_interruptNesting) == 0,
             "Bad xt_internal_data field order" );
+#if ( XT_USE_DATARAM == 0 )
     static_assert( ((sizeof(xt_internal_data_t) & (XCHAL_DCACHE_LINESIZE - 1)) == 0),
             "Incorrect xt_internal_data padding" );
+#endif
 
     #define portGET_CORE_ID()           xthal_get_coreid()
     #define portYIELD_CORE(xCoreID)     xthal_ipi_trigger(xCoreID)
@@ -327,10 +334,12 @@ BaseType_t xPortRaisePrivilege( void );
     /* Mutex APIs for SMP locks -- based on XTOS implementation.
      * Requires Xtensa Exclusive Store and PRID options to be present.
      * Must reside in shared memory and declared statically (not on the stack).
+     * Align and pad to cache line size for best performance.
      */
     typedef struct xt_mutex {
         uint32_t owner;
         uint32_t count;
+        uint8_t  pad[XCHAL_DCACHE_LINESIZE - 2 * sizeof(uint32_t)];
     } xt_mutex;
 
     typedef xt_mutex *  xt_mutex_p;
@@ -342,21 +351,29 @@ BaseType_t xPortRaisePrivilege( void );
     extern int32_t xt_mutex_lock(xt_mutex_p pmtx);
     extern int32_t xt_mutex_unlock(xt_mutex_p pmtx);
 
-    #define portGET_ISR_LOCK()         xt_mutex_lock(&_xt_mutex_ISR)
-    #define portRELEASE_ISR_LOCK()     xt_mutex_unlock(&_xt_mutex_ISR)
-    #define portGET_TASK_LOCK()        xt_mutex_lock(&_xt_mutex_task)
-    #define portRELEASE_TASK_LOCK()    xt_mutex_unlock(&_xt_mutex_task)
+    #define portGET_ISR_LOCK( xCoreID )         xt_mutex_lock(&_xt_mutex_ISR)
+    #define portRELEASE_ISR_LOCK( xCoreID )     xt_mutex_unlock(&_xt_mutex_ISR)
+    #define portGET_TASK_LOCK( xCoreID )        xt_mutex_lock(&_xt_mutex_task)
+    #define portRELEASE_TASK_LOCK( xCoreID )    xt_mutex_unlock(&_xt_mutex_task)
+
+    // Per-core data struct can be kept in dataram or indexed in shared sysram
+    #if ( XT_USE_DATARAM )
+    extern xt_internal_data_t _xt_intdata;
+    #define _XT_INTDATA(...)                    (_xt_intdata)
+    #else
+    extern xt_internal_data_t _xt_intdata[ configNUMBER_OF_CORES ];
+    #define _XT_INTDATA(c)                      (_xt_intdata[(c)])
+    #endif
 
     // uxCriticalNestings maintained within per-core data
-    extern xt_internal_data_t _xt_intdata[ configNUMBER_OF_CORES ];
-    #define portGET_CRITICAL_NESTING_COUNT()          ( _xt_intdata[ portGET_CORE_ID() ].uxCriticalNestings )
-    #define portSET_CRITICAL_NESTING_COUNT( x )       ( (_xt_intdata[ portGET_CORE_ID() ].uxCriticalNestings) = ( x ) )
-    #define portINCREMENT_CRITICAL_NESTING_COUNT()    ( (_xt_intdata[ portGET_CORE_ID() ].uxCriticalNestings) ++ )
-    #define portDECREMENT_CRITICAL_NESTING_COUNT()    ( (_xt_intdata[ portGET_CORE_ID() ].uxCriticalNestings) -- )
+    #define portGET_CRITICAL_NESTING_COUNT( xCoreID )          ( _XT_INTDATA( xCoreID ).uxCriticalNestings )
+    #define portSET_CRITICAL_NESTING_COUNT( xCoreID, x )       ( (_XT_INTDATA( xCoreID ).uxCriticalNestings) = ( x ) )
+    #define portINCREMENT_CRITICAL_NESTING_COUNT( xCoreID )    ( (_XT_INTDATA( xCoreID ).uxCriticalNestings) ++ )
+    #define portDECREMENT_CRITICAL_NESTING_COUNT( xCoreID )    ( (_XT_INTDATA( xCoreID ).uxCriticalNestings) -- )
 
     // port_interruptNesting maintained within per-core data
-    #define portINCREMENT_INTERRUPT_NESTING_COUNT()   ( (_xt_intdata[ portGET_CORE_ID() ].port_interruptNesting) ++ )
-    #define portDECREMENT_INTERRUPT_NESTING_COUNT()   ( (_xt_intdata[ portGET_CORE_ID() ].port_interruptNesting) -- )
+    #define portINCREMENT_INTERRUPT_NESTING_COUNT()   ( (_XT_INTDATA( portGET_CORE_ID() ).port_interruptNesting) ++ )
+    #define portDECREMENT_INTERRUPT_NESTING_COUNT()   ( (_XT_INTDATA( portGET_CORE_ID() ).port_interruptNesting) -- )
 
     extern UBaseType_t vTaskEnterCriticalFromISR(void);
     extern void vTaskExitCriticalFromISR(UBaseType_t uxSavedInterruptStatus);
@@ -381,16 +398,17 @@ BaseType_t xPortRaisePrivilege( void );
 
     static_assert( offsetof(xt_internal_data_t, port_interruptNesting) == 0, "Bad xt_internal_data field order" );
 
-    #define portGET_CORE_ID()           0
-    #define portYIELD_CORE(xCoreID)     UNUSED(xCoreID)
-    #define portCRITICAL_NESTING_IN_TCB 1   // Nesting managed by FreeRTOS fine for 1 core
+    #define portGET_CORE_ID()                         0
+    #define portYIELD_CORE( xCoreID )                 UNUSED( xCoreID )
+    #define portCRITICAL_NESTING_IN_TCB               1   // Nesting managed by FreeRTOS fine for 1 core
 
-    #define portGET_ISR_LOCK()
-    #define portRELEASE_ISR_LOCK()
-    #define portGET_TASK_LOCK()
-    #define portRELEASE_TASK_LOCK()
+    #define portGET_ISR_LOCK( xCoreID )
+    #define portRELEASE_ISR_LOCK( xCoreID )
+    #define portGET_TASK_LOCK( xCoreID )
+    #define portRELEASE_TASK_LOCK( xCoreID )
 
     extern xt_internal_data_t _xt_intdata;
+    #define _XT_INTDATA(...)                          ( _xt_intdata )
     #define portINCREMENT_INTERRUPT_NESTING_COUNT()   ( _xt_intdata.port_interruptNesting++ )
     #define portDECREMENT_INTERRUPT_NESTING_COUNT()   ( _xt_intdata.port_interruptNesting-- )
 

@@ -86,8 +86,11 @@
 *******************************************************************************
 */
 #if XT_SMP_MACROS
-    // Defined in C as: xt_internal_data_t _xt_intdata[ configNUMBER_OF_CORES ];
-    // where sizeof(xt_internal_data_t ) == XCHAL_DCACHE_LINESIZE
+    // ( XT_USE_DATARAM == 0 ) :
+    //   Defined in C as: xt_internal_data_t _xt_intdata[ configNUMBER_OF_CORES ];
+    //   where sizeof(xt_internal_data_t ) == XCHAL_DCACHE_LINESIZE
+    // ( XT_USE_DATARAM == 1 ) :
+    //   Defined in C as: xt_internal_data_t _xt_intdata __attribute__ ((section(".dram0.data")));
     .extern _xt_intdata
 #else
     // Defined in C as: xt_internal_data_t _xt_intdata;
@@ -95,7 +98,7 @@
 #endif
 
     .macro  pintdata    r, t
-#if XT_SMP_MACROS
+#if XT_SMP_MACROS && ( XT_USE_DATARAM == 0 )
     coreid  \t
     movi    \r,  _xt_intdata
     slli    \t,  \t, XCHAL_DCACHE_LINEWIDTH

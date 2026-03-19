@@ -115,12 +115,18 @@ _xt_coproc_handler:
 #if ( configNUMBER_OF_CORES > 1 )
         // Increment _xt_coproc_owner_sa (a3) to per-core area
         coreid  a2
+#ifdef XCHAL_HAVE_MUL32
+        movi    a6, (XCHAL_CP_MAX * 4)
+        mull    a2, a2, a6
+        add     a3, a3, a2
+#else
 1:
         beqz    a2, 2f
         addi    a3, a3, (XCHAL_CP_MAX * 4)
         addi    a2, a2, -1
         j       1b
 2:
+#endif
 #endif
         extui   a2,  a0, 0, 16                  // coprocessor bitmask portion
         or      a4,  a4, a2                     // a4 = CPENABLE | (1 << n)
@@ -359,12 +365,18 @@ _xt_coproc_savecs:
 #if ( configNUMBER_OF_CORES > 1 )
         movi    a12, _xt_coproc_owner_sa
         coreid  a14
+#ifdef XCHAL_HAVE_MUL32
+        movi    a10, (XCHAL_CP_MAX * 4)
+        mull    a14, a14, a10
+        add     a12, a12, a14
+#else
 1:
         beqz    a14, 2f
         addi    a12, a12, (XCHAL_CP_MAX * 4)    // a12 = &_xt_coproc_owner_sa[core]
         addi    a14, a14, -1
         j       1b
 2:
+#endif
 #endif  /* configNUMBER_OF_CORES > 1 */
 
 #if XCHAL_CP0_SA_SIZE
