@@ -204,9 +204,6 @@ idma_chan_buf_set(int32_t ch, idma_buf_t * buf)
         int32_t     i;
         uint32_t    ps;
 
-        // Find a free slot and allocate it. This requires interrupts
-        // disabled because we're manipulating global shared data.
-        ps = xthal_disable_interrupts();
 #if ( configNUMBER_OF_CORES > 1 )
         if (!xt_idma_mtx_handle) {
 #if ( configSUPPORT_STATIC_ALLOCATION )
@@ -217,6 +214,9 @@ idma_chan_buf_set(int32_t ch, idma_buf_t * buf)
         }
         xSemaphoreTake(xt_idma_mtx_handle, portMAX_DELAY);
 #endif
+        // Find a free slot and allocate it. This requires interrupts
+        // disabled because we're manipulating global shared data.
+        ps = xthal_disable_interrupts();
 
         for (i = 0; i < MAX_THREADS; i++) {
             if (xt_idma_buf_info[i].thread == thread) {
@@ -290,13 +290,16 @@ idma_chan_buf_clear(int32_t ch)
         int32_t     i;
         int32_t     j;
         uint32_t    ps;
+#if !( configSUPPORT_STATIC_ALLOCATION )
+        SemaphoreHandle_t sem_to_delete = NULL;
+#endif
 
-        // The following requires interrupts disabled because we're
-        // manipulating global shared data.
-        ps = xthal_disable_interrupts();
 #if ( configNUMBER_OF_CORES > 1 )
         xSemaphoreTake(xt_idma_mtx_handle, portMAX_DELAY);
 #endif
+        // The following requires interrupts disabled because we're
+        // manipulating global shared data.
+        ps = xthal_disable_interrupts();
 
         for (i = 0; i < MAX_THREADS; i++) {
             if (xt_idma_buf_info[i].thread == thread) {
@@ -314,11 +317,12 @@ idma_chan_buf_clear(int32_t ch)
                     // Confirm thread has not changed cores
                     configASSERT(xt_idma_buf_info[i].core == portGET_CORE_ID());
 #endif
-                    xt_idma_buf_info[i].thread = NULL;
 #if !( configSUPPORT_STATIC_ALLOCATION )
-                    vSemaphoreDelete(xt_idma_buf_info[i].sem_handle);
-                    xt_idma_buf_info[i].sem_handle = NULL;
+                    // Delete sem after releasing lock and enabling interrupts
+                    sem_to_delete = xt_idma_buf_info[i].sem_handle;
 #endif
+                    xt_idma_buf_info[i].sem_handle = NULL;
+                    xt_idma_buf_info[i].thread = NULL;
                 }
 
                 break;
@@ -328,6 +332,11 @@ idma_chan_buf_clear(int32_t ch)
         xthal_restore_interrupts(ps);
 #if ( configNUMBER_OF_CORES > 1 )
         xSemaphoreGive(xt_idma_mtx_handle);
+#endif
+#if !( configSUPPORT_STATIC_ALLOCATION )
+        if (sem_to_delete != NULL) {
+            vSemaphoreDelete(sem_to_delete);
+        }
 #endif
     }
 }
