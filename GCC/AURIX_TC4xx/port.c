@@ -398,7 +398,7 @@ uint32_t * pxPortCsaToAddress( uint32_t xCsa )
 
     __asm ( "extr.u %0, %1, 16, 4\n"
           "sh     %0, %0, 28\n"
-          "insert %0, %0, %1 6, 16\n" : "+d" ( pxCsa ) : "d" ( xCsa ) );
+          "insert %0, %0, %1, 6, 16\n" : "+d" ( pxCsa ) : "d" ( xCsa ) );
     /*pxCsa = (_extr_u(xCsa, 16, 4) << 28); */
     /*pxCsa = _insert(pxCsa, xCsa, 6, 16); */
     return ( uint32_t * ) pxCsa;
