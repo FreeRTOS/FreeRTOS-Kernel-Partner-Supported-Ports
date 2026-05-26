@@ -8,6 +8,41 @@ The port is placed under the `GCC/` folder because the compiler used — **trico
 
 - [AURIX™ Development Studio Limited (ADS-L)](https://softwaretools.infineon.com/tools/com.ifx.tb.tool.aurixide) — includes **tricore-gcc** and an integrated debugger. To request access, send an email to `ads@infineon.com` or install via the [Infineon Developer Center Launcher](https://www.infineon.com/cms/en/design-support/tools/utilities/infineon-developer-center-idc-launcher/)
 
+## How To Use This Port
+
+Add `port.c`, `portmacro.h`, and `portmacro_gcc.h` from this directory to the application's FreeRTOS portable layer, and add this directory to the compiler include path so the FreeRTOS kernel can include `portmacro.h`.
+
+The application must provide a `FreeRTOSConfig.h` that defines the TC4xx-specific options listed below. It must also provide the ADS-L/iLLD trap hook configuration described in the System Call Trap Integration section so `portYIELD()` can reach `vPortSyscallHandler()`.
+
+A complete TC4D7 ADS-L example, including matching `Configurations` files, is available in `/FreeRTOS-Partner-Supported-Demos/AURIX_TC4D7_ADS`.
+
+## Required FreeRTOSConfig.h Options
+
+In addition to the standard FreeRTOS kernel configuration options such as `configCPU_CLOCK_HZ`, `configTICK_RATE_HZ`, `configMAX_PRIORITIES`, `configMINIMAL_STACK_SIZE`, and `configTOTAL_HEAP_SIZE`, an application that uses this port must define the TC4xx-specific options below in `FreeRTOSConfig.h`. The companion demo provides example values for TC4D7 CPU0.
+
+When using ADS-L/iLLD register symbols in these macros, include the corresponding device register headers before the macro definitions, for example `IfxCpu_reg.h` and `IfxSrc_reg.h`. A `configASSERT()` definition is recommended; the companion demo maps it to the TriCore debug instruction in `DEBUG` builds and to an empty macro otherwise.
+
+| Macro | Purpose |
+| --- | --- |
+| `configCPU` | Base address of the per-CPU STM register block used for the tick timer. |
+| `configCPU_STM_SRC` | Address of the STM service request register used by the tick interrupt. |
+| `configCPU_STM_CLOCK_HZ` | STM input clock frequency used to calculate the tick compare interval. |
+| `configCONTEXT_SRC` | Address of the service request register used for software-triggered context switches. |
+| `configCPU_NR` | TriCore CPU number used in SRC TOS fields and in the generated `.intvec_tc<cpu>_<priority>` section names. |
+| `configVM_NR` | TC4xx virtual-machine number used to select the STM VM register offset and SRC VM field. |
+| `configCONTEXT_INTERRUPT_PRIORITY` | Interrupt priority for the context-switch service request. |
+| `configTIMER_INTERRUPT_PRIORITY` | Interrupt priority for the STM tick service request. |
+| `configMAX_API_CALL_INTERRUPT_PRIORITY` | CCPN mask threshold used by critical sections and FromISR API masking. |
+| `configSYSCALL_CALL_DEPTH` | Call depth used when saving and restoring context from `vPortSyscallYield()`. |
+
+The following TC4xx-specific options are optional or have port-provided defaults:
+
+| Macro | Purpose |
+| --- | --- |
+| `configCPU_STM_DEBUG` | Optional debug assert for missed STM ticks; undefined or `0` disables it. |
+| `configTICK_STM_DEBUG` | Optional STM debug-control setup during tick timer initialization; undefined or `0` disables it. |
+| `configYIELD_SYSCALL_ID` | Syscall ID used by `portYIELD()`; defaults to `0` when not defined. |
+
 ## System Call Trap Integration
 
 `portYIELD()` uses the TriCore `syscall` instruction with `configYIELD_SYSCALL_ID` (default `0`). The syscall enters the TriCore system-call trap class (class 6 / SYS); the trap identification number (TIN) is passed to `vPortSyscallHandler()` and is matched against `configYIELD_SYSCALL_ID`.
