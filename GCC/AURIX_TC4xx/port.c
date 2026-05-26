@@ -388,22 +388,15 @@ void vPortSyscallYield()
     vPortLoadContext( configSYSCALL_CALL_DEPTH );
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#pragma GCC diagnostic ignored "-Wuninitialized"
-/* warning disabled since the pxCsa is initialized in the assembly block */
 uint32_t * pxPortCsaToAddress( uint32_t xCsa )
 {
     uint32_t pxCsa;
 
     __asm ( "extr.u %0, %1, 16, 4\n"
           "sh     %0, %0, 28\n"
-          "insert %0, %0, %1, 6, 16\n" : "+d" ( pxCsa ) : "d" ( xCsa ) );
-    /*pxCsa = (_extr_u(xCsa, 16, 4) << 28); */
-    /*pxCsa = _insert(pxCsa, xCsa, 6, 16); */
+          "insert %0, %0, %1, 6, 16\n" : "=&d" ( pxCsa ) : "d" ( xCsa ) );
     return ( uint32_t * ) pxCsa;
 }
-#pragma GCC diagnostic pop
 
 void vPortEnterCritical( void )
 {
