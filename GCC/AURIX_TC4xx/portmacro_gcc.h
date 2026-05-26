@@ -41,7 +41,7 @@
 #define PORTMACRO_TC4X_GCC_H
 
 #ifdef __cplusplus
-    extern "C"
+    extern "C" {
 #endif
 
 #include <stdint.h>
@@ -196,4 +196,4 @@ static inline uint32_t __attribute__( ( used, always_inline ) ) xPortSetCCPN( un
 }
 #endif
 
-#endif /* PORTMACRO_H */
+#endif /* PORTMACRO_TC4X_GCC_H */
