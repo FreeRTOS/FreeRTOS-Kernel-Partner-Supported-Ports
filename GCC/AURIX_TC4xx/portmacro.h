@@ -41,11 +41,7 @@
 #define PORTMACRO_H
 
 #if defined(__GNUC__) && !defined(__HIGHTEC__)
-#include "GCC/portmacro_gcc.h"
-#endif
-
-#if defined(__TASKING__)
-#include "Tasking/portmacro_tasking.h"
+#include "portmacro_gcc.h"
 #endif
 
 #endif /* PORTMACRO_H */
