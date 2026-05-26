@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Infineon Technologies AG. All rights reserved.
+ * \copyright Copyright (c) 2023 Infineon Technologies AG. All rights reserved.
  *
  *
  *                               IMPORTANT NOTICE
