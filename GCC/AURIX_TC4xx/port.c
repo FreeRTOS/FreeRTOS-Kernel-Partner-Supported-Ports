@@ -99,7 +99,7 @@ BaseType_t xPortStartScheduler( void )
     return 0;
 }
 
-void vPortEndScheduler()
+void vPortEndScheduler( void )
 {
     pxCPUSrc[ 0 ] &= ~( 1 << portSRC_SRCR_SRE_OFF );
     pxContextSrc[ 0 ] &= ~( 1 << portSRC_SRCR_SRE_OFF );
