@@ -7,6 +7,7 @@ Notes for Version 3.13
 - FreeRTOS SMP config option "XT_USE_DATARAM" moves per-core data into
   dataram for performance improvements.  Disabled by default.
 - Based on FreeRTOS-Kernel V11.2.0 release in 3/2025.
+- Also tested on FreeRTOS-Kernel V11.3.0 release in 3/2026.
 
 
 Notes for Version 3.12

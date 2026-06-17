@@ -1,7 +1,7 @@
         FreeRTOS Port for Xtensa Configurable Processors
         ================================================
 
-                FreeRTOS Kernel Version 11.2.0
+                FreeRTOS Kernel Version 11.3.0
 
 
 Introduction
@@ -11,7 +11,8 @@ This document describes the Xtensa port for FreeRTOS multitasking RTOS.
 For an introduction to FreeRTOS itself, please refer to FreeRTOS
 documentation.
 
-This port currently works with FreeRTOS kernel version 11.2.0.
+This port was developed and tested with FreeRTOS kernel version 11.2.0,
+and also currently works with FreeRTOS kernel version 11.3.0.
 
 
 Xtensa Configuration Requirements and Restrictions
