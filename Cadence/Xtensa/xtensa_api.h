@@ -81,6 +81,16 @@ extern xt_handler xt_set_interrupt_handler( uint32_t n, xt_handler f, void * arg
 
 /*
 -------------------------------------------------------------------------------
+  Call this function to get a handler for the specified interrupt.
+ 
+    n        - Interrupt number.
+-------------------------------------------------------------------------------
+*/
+extern xt_handler xt_get_interrupt_handler( uint32_t n ) PRIVILEGED_FUNCTION;
+
+
+/*
+-------------------------------------------------------------------------------
   Call this function to enable the specified interrupt.
 
     intnum    - Interrupt number to be enabled.
