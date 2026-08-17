@@ -225,7 +225,7 @@
     #define XT_L2RAM_SIXTEENTHS                         8
     #define XT_L2CACHE_SIXTEENTHS                       8
 
-    #define portMOVE_PRIVILEGED_DATA    __attribute__( ( section( ".l2ram.bss" ) ) )
+    #define PRIVILEGED_DATA        __attribute__( ( section( ".l2ram.bss" ) ) )
 #endif
 
 /**
