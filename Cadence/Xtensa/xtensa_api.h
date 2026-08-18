@@ -37,8 +37,8 @@
 #include <stdint.h>
 #include <xtensa/hal.h>
 
-#include "mpu_wrappers.h"
 #include "xtensa_context.h"
+#include "mpu_wrappers.h"
 
 
 /* Typedef for C-callable interrupt handler function */
