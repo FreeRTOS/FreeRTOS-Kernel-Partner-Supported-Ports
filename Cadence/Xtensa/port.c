@@ -341,6 +341,14 @@ static void update_xt_tick_cycles( void )
     #else
     #error "No way to obtain processor clock frequency"
     #endif
+
+    // Recompute xMaxSuppressedTicks whenever xt_tick_cycles changes so it does
+    // not stay stale after DVFS transitions. Use INT32_MAX (not 0xFFFFFFFFU)
+    // because vPortSuppressTicksAndSleep() and xt_update_clock_frequency() test
+    // (ccompare - now <= INT32_MAX) to distinguish a future deadline from a
+    // recently-passed deadline; num_cycles = skip_tick * xt_tick_cycles must
+    // therefore never exceed INT32_MAX.
+    xMaxSuppressedTicks = INT32_MAX / xt_tick_cycles;
 }
 
 //-----------------------------------------------------------------------------
@@ -350,7 +358,6 @@ static void update_xt_tick_cycles( void )
 static void xt_tick_timer_init( void )
 {
     update_xt_tick_cycles();
-    xMaxSuppressedTicks = 0xFFFFFFFFU / xt_tick_cycles;
     xt_set_interrupt_handler( XT_TIMER_INTNUM, (xt_handler) xt_tick_handler, 0 );
     xt_set_ccompare( XT_TIMER_INDEX, xthal_get_ccount() + xt_tick_cycles );
     xt_tick_count = xTaskGetTickCount();
@@ -773,8 +780,13 @@ void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
             // ccompare is still in the future, or in the immediate past
             // (crossed after entering the critical section above). In the
             // latter case the pending interrupt will be cleared below.
+            // Check ccompare - now <= INT32_MAX (matching
+            // xt_update_clock_frequency) so that if ccompare was already
+            // crossed, unsigned underflow takes the else branch instead of
+            // computing a wrapped actual_cycles.
 
-            if ( ccompare - now > xt_tick_cycles )
+            if ( ccompare - now > xt_tick_cycles &&
+                 ccompare - now <= INT32_MAX )
             {
                 uint32_t prev_tick = first_blocked_tick - xt_tick_cycles;
                 uint32_t actual_cycles = now - prev_tick;
@@ -866,10 +878,16 @@ static void update_tick_remainder( uint32_t now )
     old_tick_cycles = xt_tick_cycles;
     update_xt_tick_cycles();
 
+    // Refresh 'now' after xt_update_clock_frequency() may have advanced
+    // ccompare to the next tick boundary (where old_ccompare - now ==
+    // old_tick_cycles), and use '<=' below so an exact full-tick remainder is
+    // rescaled to the new frequency instead of being left unscaled.
+    now = xt_get_ccount();
+
     // If tick deadline has not been reached yet correct number of remaining
     // cycles, otherwise timer interrupt must be pending, just service it.
 
-    if ( old_ccompare - now < old_tick_cycles )
+    if ( old_ccompare - now <= old_tick_cycles )
     {
         uint32_t new_ccompare = now +
             (uint32_t)((uint64_t)(old_ccompare - now) * xt_tick_cycles / old_tick_cycles);
